@@ -65,6 +65,13 @@ class Config(BaseModel, extra="ignore"):
         },
         description="唱歌的音色映射",
     )
+    sing_rule_debug: bool = Field(
+        default=False,
+        description=field_help(
+            "是否在日志中输出每条消息的 rule 匹配跳过原因",
+            "仅排障时开启；群消息量大时 INFO 级刷屏会拖慢 worker",
+        ),
+    )
 
 
 def on_sing_config_reload(cfg: Config) -> None:

@@ -272,7 +272,7 @@ wheels = [
 
 [[package]]
 name = "pallas-plugin-ai-media"
-version = "4.0.17"
+version = "4.0.18"
 source = { editable = "." }
 dependencies = [
     { name = "nonebot-adapter-onebot" },

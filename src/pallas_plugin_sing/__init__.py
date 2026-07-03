@@ -193,7 +193,7 @@ async def sync_task_id_alias(
 
 
 def sing_debug_enabled() -> bool:
-    return True
+    return bool(get_sing_config().sing_rule_debug)
 
 
 def log_rule_skip(
@@ -204,7 +204,7 @@ def log_rule_skip(
 ) -> None:
     if not sing_debug_enabled():
         return
-    logger.info(
+    logger.debug(
         "sing rule skip rule={} bot_id={} group_id={} user_id={} text={!r} reason={}",
         rule_name,
         getattr(event, "self_id", ""),

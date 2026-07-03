@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+## [4.0.18] - 2026-07-03
+
+- perf(sing): rule 匹配跳过日志改为 DEBUG 且默认关闭（`sing_rule_debug`），避免每条群消息刷 3 条 INFO
+
 ## [4.0.17] - 2026-06-27
 - docs(readme): 命令权限默认等级改用中文展示
 

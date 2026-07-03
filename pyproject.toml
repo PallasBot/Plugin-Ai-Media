@@ -1,6 +1,6 @@
 [project]
 name = "pallas-plugin-ai-media"
-version = "4.0.17"
+version = "4.0.18"
 description = "Pallas-Bot 官方扩展：唱歌与聊天。"
 readme = "README.md"
 license = { file = "LICENSE" }

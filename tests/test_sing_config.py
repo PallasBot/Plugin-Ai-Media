@@ -14,10 +14,12 @@ if str(SRC) not in sys.path:
 def _load_sing_config_module():
     config_api = types.ModuleType("pallas.api.config")
     config_api.field_help = lambda *parts: " ".join(parts)
-    config_api.install_hot_reload_config = lambda model, **kwargs: types.SimpleNamespace(
-        get=lambda: model(),
-        reload=lambda: None,
-        clear_cache=lambda: None,
+    config_api.install_hot_reload_config = lambda model, **kwargs: (
+        types.SimpleNamespace(
+            get=lambda: model(),
+            reload=lambda: None,
+            clear_cache=lambda: None,
+        )
     )
     sys.modules["pallas.api.config"] = config_api
 
@@ -48,3 +50,7 @@ def test_sing_runtime_mode_accepts_media_task() -> None:
 
 def test_sing_runtime_mode_normalizes_unknown_values() -> None:
     assert sing_runtime_mode(Config(sing_runtime_mode="plugin")) == "legacy"
+
+
+def test_sing_rule_debug_defaults_false() -> None:
+    assert Config().sing_rule_debug is False
