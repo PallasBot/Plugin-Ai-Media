@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+## [4.0.19] - 2026-07-18
+
+- fix(sing): 点歌/唱歌收尾文案对 ActionFailed（如 result=120 协议拒发）降级为 warning，避免 worker LogError；点歌失败路径先清理任务再结束，并改用本 matcher
+
 ## [4.0.18] - 2026-07-03
 
 - perf(sing): rule 匹配跳过日志改为 DEBUG 且默认关闭（`sing_rule_debug`），避免每条群消息刷 3 条 INFO

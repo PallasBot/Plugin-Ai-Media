@@ -21,9 +21,31 @@ def _install_stub(name: str, module: types.ModuleType) -> None:
 
 def _bootstrap_stub_modules() -> None:
     nonebot = types.ModuleType("nonebot")
-    nonebot.logger = types.SimpleNamespace(info=lambda *a, **k: None, warning=lambda *a, **k: None)
-    nonebot.on_message = lambda *a, **k: types.SimpleNamespace(handle=lambda: (lambda fn: fn), finish=None)
+    nonebot.logger = types.SimpleNamespace(
+        info=lambda *a, **k: None,
+        warning=lambda *a, **k: None,
+        debug=lambda *a, **k: None,
+    )
+    nonebot.on_message = lambda *a, **k: types.SimpleNamespace(
+        handle=lambda: (lambda fn: fn), finish=None, send=None
+    )
     _install_stub("nonebot", nonebot)
+
+    exception = types.ModuleType("nonebot.exception")
+
+    class ActionFailed(Exception):
+        pass
+
+    class FinishedException(Exception):
+        pass
+
+    class NetworkError(Exception):
+        pass
+
+    exception.ActionFailed = ActionFailed
+    exception.FinishedException = FinishedException
+    exception.NetworkError = NetworkError
+    _install_stub("nonebot.exception", exception)
 
     adapters = types.ModuleType("nonebot.adapters")
     adapters.Bot = object
@@ -66,6 +88,22 @@ def _bootstrap_stub_modules() -> None:
     config_mod.TaskManager = types.SimpleNamespace(add_task=None, remove_task=None)
     _install_stub("pallas.api.config", config_mod)
 
+    limits_mod = types.ModuleType("pallas.api.limits")
+
+    async def _cooldown_ready(*_a, **_k) -> bool:
+        return True
+
+    async def _refresh_cooldown(*_a, **_k) -> None:
+        return None
+
+    limits_mod.is_command_cooldown_ready = _cooldown_ready
+    limits_mod.refresh_command_cooldown = _refresh_cooldown
+    _install_stub("pallas.api.limits", limits_mod)
+
+    perm_mod = types.ModuleType("pallas.api.perm")
+    perm_mod.group_message_permission_for_command = lambda *_a, **_k: object()
+    _install_stub("pallas.api.perm", perm_mod)
+
     db_mod = types.ModuleType("pallas.core.foundation.db.modules")
     db_mod.SingProgress = lambda **kwargs: types.SimpleNamespace(**kwargs)
     _install_stub("pallas.core.foundation.db.modules", db_mod)
@@ -73,6 +111,13 @@ def _bootstrap_stub_modules() -> None:
     utils_mod = types.ModuleType("pallas.core.shared.utils")
     utils_mod.HTTPXClient = types.SimpleNamespace(get=None, post=None)
     _install_stub("pallas.core.shared.utils", utils_mod)
+
+    knowledge = types.ModuleType("pallas.product.llm.knowledge.declare")
+    knowledge.knowledge_source_row = lambda **kwargs: kwargs
+    _install_stub("pallas.product.llm.knowledge.declare", knowledge)
+    _install_stub("pallas.product.llm.knowledge", types.ModuleType("pallas.product.llm.knowledge"))
+    _install_stub("pallas.product.llm", types.ModuleType("pallas.product.llm"))
+    _install_stub("pallas.product", types.ModuleType("pallas.product"))
 
     sing_config = types.ModuleType("pallas_plugin_sing.config")
     sing_config.get_sing_config = lambda: types.SimpleNamespace(
@@ -82,6 +127,7 @@ def _bootstrap_stub_modules() -> None:
         request_endpoint="/api/request",
         sing_length=120,
         sing_speakers={"牛牛": "pallas"},
+        sing_rule_debug=False,
     )
     sing_config.sing_server_url = lambda cfg=None: "http://127.0.0.1:9099"
     _install_stub("pallas_plugin_sing.config", sing_config)
@@ -100,9 +146,25 @@ sing_mod = importlib.import_module("pallas_plugin_sing")  # noqa: E402
 class DummyMatcher:
     def __init__(self) -> None:
         self.finished: list[str] = []
+        self.sent: list[str] = []
 
-    async def finish(self, message: str) -> None:
-        self.finished.append(message)
+    async def send(self, message: str) -> None:
+        self.sent.append(message)
+
+    async def finish(self, message: str | None = None) -> None:
+        if message is not None:
+            self.finished.append(message)
+        raise sing_mod.FinishedException
+
+
+@pytest.mark.asyncio
+async def test_safe_finish_swallows_action_failed() -> None:
+    class RejectMatcher:
+        async def send(self, _message: str) -> None:
+            raise sing_mod.ActionFailed("send group message rejected: result=120")
+
+    with pytest.raises(sing_mod.FinishedException):
+        await sing_mod.safe_finish(RejectMatcher(), "欢呼吧！")
 
 
 class DummyConfig:
@@ -185,10 +247,11 @@ async def test_play_dispatch_uses_request_id_endpoint_and_keeps_request_id_task(
     monkeypatch.setattr(sing_mod.HTTPXClient, "post", fake_post)
     monkeypatch.setattr(sing_mod, "finish_on_cooldown", fake_finish_on_cooldown)
 
-    await sing_mod.handle_play(DummyBot(), DummyEvent(), {"speaker": "pallas"})
+    with pytest.raises(sing_mod.FinishedException):
+        await sing_mod.handle_play(DummyBot(), DummyEvent(), {"speaker": "pallas"})
 
     assert requests == [("http://127.0.0.1:9099/api/play/local-request-id", {"speaker": "pallas"})]
     assert removed == []
     assert [task_id for task_id, _ in added] == ["local-request-id"]
     assert added[0][1]["task_type"] == "play"
-    assert matcher.finished == ["欢呼吧！"]
+    assert matcher.sent == ["欢呼吧！"]

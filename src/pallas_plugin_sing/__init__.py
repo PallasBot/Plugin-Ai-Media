@@ -3,6 +3,7 @@ import time
 from nonebot import logger, on_message
 from nonebot.adapters import Bot, Event
 from nonebot.adapters.onebot.v11 import GroupMessageEvent
+from nonebot.exception import ActionFailed, FinishedException, NetworkError
 from nonebot.plugin import PluginMetadata
 from nonebot.rule import Rule
 from nonebot.typing import T_State
@@ -162,6 +163,16 @@ SING_CONTINUE_CMDS = {"继续唱", "接着唱"}
 WHAT_SONG_CMDS = {"什么歌", "哪首歌", "啥歌"}
 
 
+async def safe_finish(matcher, message: str | None = None) -> None:
+    """发送收尾文案；协议拒发时降级为 warning，仍正常结束 matcher。"""
+    if message is not None:
+        try:
+            await matcher.send(message)
+        except (ActionFailed, NetworkError) as err:
+            logger.warning("sing reply send failed: {}", err)
+    raise FinishedException
+
+
 async def guard_command_cooldown(
     matcher,
     event: GroupMessageEvent,
@@ -171,7 +182,7 @@ async def guard_command_cooldown(
 ) -> bool:
     if not await is_command_cooldown_ready(event, command_id):
         if speak:
-            await matcher.finish("牛牛还在回味上一首，稍等再点歌吧。")
+            await safe_finish(matcher, "牛牛还在回味上一首，稍等再点歌吧。")
         return False
     await refresh_command_cooldown(event, command_id)
     return True
@@ -342,8 +353,9 @@ async def handle_sing(bot: Bot, event: GroupMessageEvent, state: T_State):
     speaker = state["speaker"]
     song_id = await get_song_id(state["song_id"])
     if not song_id:
-        await sing_msg.finish(
-            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。"
+        await safe_finish(
+            sing_msg,
+            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。",
         )
     key = state["key"]
     chunk_index = state["chunk_index"]
@@ -387,8 +399,9 @@ async def handle_sing(bot: Bot, event: GroupMessageEvent, state: T_State):
             url,
         )
         await TaskManager.remove_task(request_id)
-        await sing_msg.finish(
-            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。"
+        await safe_finish(
+            sing_msg,
+            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。",
         )
     task_id = response_task_id(response)
     logger.info(
@@ -401,8 +414,9 @@ async def handle_sing(bot: Bot, event: GroupMessageEvent, state: T_State):
     )
     if not task_id:
         await TaskManager.remove_task(request_id)
-        await sing_msg.finish(
-            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。"
+        await safe_finish(
+            sing_msg,
+            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。",
         )
     await sync_task_id_alias(request_id, str(task_id), task_payload)
 
@@ -414,7 +428,7 @@ async def handle_sing(bot: Bot, event: GroupMessageEvent, state: T_State):
                 key=key,
             )
         )
-    await sing_msg.finish("欢呼吧！")
+    await safe_finish(sing_msg, "欢呼吧！")
 
 
 async def is_play(bot: Bot, event: Event, state: T_State) -> bool:
@@ -477,8 +491,9 @@ async def handle_play(bot: Bot, event: GroupMessageEvent, state: T_State):
             url,
         )
         await TaskManager.remove_task(request_id)
-        await play_cmd.finish(
-            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。"
+        await safe_finish(
+            play_cmd,
+            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。",
         )
     task_id = response_task_id(response)
     logger.info(
@@ -492,11 +507,12 @@ async def handle_play(bot: Bot, event: GroupMessageEvent, state: T_State):
     )
     if not task_id:
         await TaskManager.remove_task(request_id)
-        await play_cmd.finish(
-            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。"
+        await safe_finish(
+            play_cmd,
+            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。",
         )
     await sync_task_id_alias(request_id, str(task_id), task_payload)
-    await play_cmd.finish("欢呼吧！")
+    await safe_finish(play_cmd, "欢呼吧！")
 
 
 async def is_to_request_song(event: GroupMessageEvent, state: T_State) -> bool:
@@ -596,10 +612,11 @@ async def handle_request_song(bot: Bot, event: GroupMessageEvent, state: T_State
             song_id,
             url,
         )
-        await sing_msg.finish(
-            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。"
-        )
         await TaskManager.remove_task(request_id)
+        await safe_finish(
+            request_song_msg,
+            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。",
+        )
     task_id = response_task_id(response)
     logger.info(
         "sing request response mode=request request_id={} task_id={} status_code={} bot_id={} group_id={} song_id={}",
@@ -611,13 +628,14 @@ async def handle_request_song(bot: Bot, event: GroupMessageEvent, state: T_State
         song_id,
     )
     if not task_id:
-        await sing_msg.finish(
-            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。"
-        )
         await TaskManager.remove_task(request_id)
+        await safe_finish(
+            request_song_msg,
+            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。",
+        )
     await sync_task_id_alias(request_id, str(task_id), task_payload)
 
-    await sing_msg.finish("欢呼吧！")
+    await safe_finish(request_song_msg, "欢呼吧！")
 
 
 async def what_song(event: Event) -> bool:
@@ -654,4 +672,4 @@ async def _(event: GroupMessageEvent):
     if not song_title:
         return
 
-    await song_title_cmd.finish(f"{song_title}")
+    await safe_finish(song_title_cmd, f"{song_title}")
