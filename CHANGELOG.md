@@ -5,6 +5,11 @@
 
 ## [Unreleased]
 
+## [4.0.20] - 2026-07-24
+
+- docs: 说明酒后 `chat` 仍作为旧版 AI 路径保留；与本体 `llm_chat` 并存时由本体让路避免双回复
+- docs: 展示与说明改为以「牛牛唱歌」为主能力
+
 ## [4.0.19] - 2026-07-18
 
 - fix(sing): 点歌/唱歌收尾文案对 ActionFailed（如 result=120 协议拒发）降级为 warning，避免 worker LogError；点歌失败路径先清理任务再结束，并改用本 matcher

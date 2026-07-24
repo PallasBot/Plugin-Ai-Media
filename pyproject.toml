@@ -1,7 +1,7 @@
 [project]
 name = "pallas-plugin-ai-media"
-version = "4.0.19"
-description = "Pallas-Bot 官方扩展：唱歌与聊天。"
+version = "4.0.20"
+description = "Pallas-Bot 官方扩展：牛牛唱歌（包内仍含酒后 chat 旧路径）。"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.12,<4.0"

@@ -100,7 +100,23 @@ def _bootstrap_stub_modules() -> None:
     llm_product = types.ModuleType("pallas.product.llm")
     llm_product.ChatSubmitRequest = ChatSubmitRequest
     llm_product.submit_chat_task = None
+
+    async def fake_build_drunk_chat_system_prompt(*_a, **_k):
+        return types.SimpleNamespace(system_prompt="你是牛牛。", token_count=50, temperature=None)
+
+    llm_product.build_drunk_chat_system_prompt = fake_build_drunk_chat_system_prompt
+    llm_product.is_legacy_rwkv_drunk_chat_enabled = lambda: False
+    llm_product.is_llm_chat_service_enabled = lambda: True
     _install_stub("pallas.product.llm", llm_product)
+
+    legacy_rwkv = types.ModuleType("pallas.product.llm.legacy_rwkv")
+    legacy_rwkv.submit_rwkv_drunk_chat = None
+    _install_stub("pallas.product.llm.legacy_rwkv", legacy_rwkv)
+
+    knowledge_declare = types.ModuleType("pallas.product.llm.knowledge.declare")
+    knowledge_declare.knowledge_source_row = lambda **kwargs: kwargs
+    _install_stub("pallas.product.llm.knowledge", types.ModuleType("pallas.product.llm.knowledge"))
+    _install_stub("pallas.product.llm.knowledge.declare", knowledge_declare)
 
     chat_config = types.ModuleType("pallas_plugin_chat.config")
     chat_config.Config = object
@@ -126,6 +142,7 @@ class DummyBot:
 class DummyEvent:
     self_id = "123456"
     group_id = 42
+    user_id = 10001
 
     def is_tome(self) -> bool:
         return False
