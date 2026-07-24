@@ -5,6 +5,11 @@
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-07-24
+
+- breaking: 移除 `pallas_plugin_chat`；酒后对话改由本体 `llm_chat` 承接（可选 `CHAT_TTS_ENABLE` 走 AI 仓 TTS）
+- docs: 包展示与说明改为「牛牛唱歌」
+
 ## [4.0.20] - 2026-07-24
 
 - docs: 说明酒后 `chat` 仍作为旧版 AI 路径保留；与本体 `llm_chat` 并存时由本体让路避免双回复
