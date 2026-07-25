@@ -8,11 +8,10 @@ from nonebot.exception import FinishedException
 from nonebot.log import logger
 from nonebot.params import ArgStr
 from nonebot.typing import T_State
-from pydantic import BaseModel
-from pyncm_async import apis as ncm
-
 from pallas.api.perm import permission_for_command
 from pallas.core.shared.utils import HTTPXClient
+from pydantic import BaseModel
+from pyncm_async import apis as ncm
 
 from ..config import sing_server_url
 
@@ -129,7 +128,7 @@ async def handle_logout(event: MessageEvent):
         await ncm_logout_cmd.finish("无法连接到服务器，请检查网络或服务器状态。")
     except Exception as e:
         logger.error(f"ncm logout unexpected error: {e}", exc_info=True)
-        await ncm_logout_cmd.finish(f"登出过程中出现错误: {str(e)}，请稍后重试。")
+        await ncm_logout_cmd.finish(f"登出过程中出现错误: {e!s}，请稍后重试。")
 
 
 async def is_ncm_logged_in():
@@ -168,9 +167,7 @@ async def get_song_id(song_name: str):
         return None
 
     try:
-        logged_in = await asyncio.wait_for(
-            is_ncm_logged_in(), timeout=NCM_SEARCH_TIMEOUT
-        )
+        logged_in = await asyncio.wait_for(is_ncm_logged_in(), timeout=NCM_SEARCH_TIMEOUT)
     except TimeoutError:
         logger.warning(f"ncm login status check timeout for song {song_name!r}")
         return None

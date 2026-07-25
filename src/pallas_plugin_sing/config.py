@@ -1,6 +1,5 @@
-from pydantic import BaseModel, Field
-
 from pallas.api.config import field_help, install_hot_reload_config
+from pydantic import BaseModel, Field
 
 
 class Config(BaseModel, extra="ignore"):
@@ -55,9 +54,7 @@ class Config(BaseModel, extra="ignore"):
             "通用配置页「服务网关」主要使用此项做连通检测",
         ),
     )
-    sing_length: int = Field(
-        default=120, description="单次合成音频的默认最大时长（秒），具体以后端为准。"
-    )
+    sing_length: int = Field(default=120, description="单次合成音频的默认最大时长（秒），具体以后端为准。")
     sing_speakers: dict[str, str] = Field(
         default_factory=lambda: {
             "帕拉斯": "pallas",
@@ -82,9 +79,7 @@ def on_sing_config_reload(cfg: Config) -> None:
     invalidate_plugin_help_availability_cache()
 
 
-plugin_webui = install_hot_reload_config(
-    Config, config_module=__name__, on_reload=on_sing_config_reload
-)
+plugin_webui = install_hot_reload_config(Config, config_module=__name__, on_reload=on_sing_config_reload)
 get_sing_config = plugin_webui.get
 reload_sing_config = plugin_webui.reload
 clear_sing_config_cache = plugin_webui.clear_cache

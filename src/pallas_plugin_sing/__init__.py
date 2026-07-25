@@ -7,8 +7,8 @@ from nonebot.exception import ActionFailed, FinishedException, NetworkError
 from nonebot.plugin import PluginMetadata
 from nonebot.rule import Rule
 from nonebot.typing import T_State
-from ulid import ULID
-
+from pallas.api.config import GroupConfig, TaskManager
+from pallas.api.limits import is_command_cooldown_ready, refresh_command_cooldown
 from pallas.api.metadata import (
     PLUGIN_EXTRA_VERSION,
     PLUGIN_HOMEPAGE,
@@ -18,12 +18,11 @@ from pallas.api.metadata import (
     join_usage,
     usage_line,
 )
-from pallas.api.config import GroupConfig, TaskManager
-from pallas.api.limits import is_command_cooldown_ready, refresh_command_cooldown
 from pallas.api.perm import group_message_permission_for_command
 from pallas.core.foundation.db.modules import SingProgress
-from pallas.product.llm.knowledge.declare import knowledge_source_row
 from pallas.core.shared.utils import HTTPXClient
+from pallas.product.llm.knowledge.declare import knowledge_source_row
+from ulid import ULID
 
 from .config import get_sing_config, sing_server_url
 from .ncm_login import get_song_id, get_song_title
@@ -128,10 +127,7 @@ __plugin_meta__ = PluginMetadata(
                 chunks=[
                     {
                         "title": "AI 翻唱",
-                        "content": (
-                            "发送「牛牛唱歌 歌曲名」可 AI 翻唱；"
-                            "可选 key=±N 调整音调（-12 到 12）。"
-                        ),
+                        "content": ("发送「牛牛唱歌 歌曲名」可 AI 翻唱；可选 key=±N 调整音调（-12 到 12）。"),
                         "keywords": "唱歌,翻唱,牛牛唱歌,key,音调",
                     },
                     {
@@ -246,9 +242,7 @@ def response_status_code(response) -> int | None:
         return None
 
 
-async def finish_on_cooldown(
-    matcher, event: GroupMessageEvent, command_id: str
-) -> bool:
+async def finish_on_cooldown(matcher, event: GroupMessageEvent, command_id: str) -> bool:
     return await guard_command_cooldown(matcher, event, command_id)
 
 
@@ -310,9 +304,7 @@ async def is_to_sing(event: GroupMessageEvent, state: T_State) -> bool:
 
     if text in SING_CONTINUE_CMDS:
         progress = await GroupConfig(group_id=event.group_id).sing_progress()
-        logger.info(
-            f"bot [{event.self_id}] sing continue read progress in group [{event.group_id}]: {progress}"
-        )
+        logger.info(f"bot [{event.self_id}] sing continue read progress in group [{event.group_id}]: {progress}")
         if not progress:
             log_rule_skip("sing", event, "continue without progress", text)
             return False
@@ -370,7 +362,8 @@ async def handle_sing(bot: Bot, event: GroupMessageEvent, state: T_State):
 
     url = f"{sing_server_url(plugin_config)}{plugin_config.sing_endpoint}/{request_id}"
     logger.info(
-        "sing request dispatch mode=sing request_id={} bot_id={} group_id={} speaker={} song_id={} chunk_index={} key={} url={}",
+        "sing request dispatch mode=sing request_id={} bot_id={} group_id={} "
+        "speaker={} song_id={} chunk_index={} key={} url={}",
         request_id,
         bot.self_id,
         event.group_id,
@@ -576,9 +569,7 @@ async def handle_request_song(bot: Bot, event: GroupMessageEvent, state: T_State
         return False
 
     request_id = str(ULID())
-    url = (
-        f"{sing_server_url(plugin_config)}{plugin_config.request_endpoint}/{request_id}"
-    )
+    url = f"{sing_server_url(plugin_config)}{plugin_config.request_endpoint}/{request_id}"
     logger.info(
         "sing request dispatch mode=request request_id={} bot_id={} group_id={} song_name={} song_id={} url={}",
         request_id,
@@ -641,9 +632,7 @@ async def handle_request_song(bot: Bot, event: GroupMessageEvent, state: T_State
 async def what_song(event: Event) -> bool:
     text = event.get_plaintext()
     speakers = get_sing_config().sing_speakers.keys()
-    return any(text.startswith(spk) for spk in speakers) and any(
-        key in text for key in WHAT_SONG_CMDS
-    )
+    return any(text.startswith(spk) for spk in speakers) and any(key in text for key in WHAT_SONG_CMDS)
 
 
 song_title_cmd = on_message(
@@ -658,15 +647,11 @@ song_title_cmd = on_message(
 async def _(event: GroupMessageEvent):
     config = GroupConfig(event.group_id)
     progress = await config.sing_progress()
-    logger.info(
-        f"bot [{event.self_id}] sing song title query in group [{event.group_id}]: {progress}"
-    )
+    logger.info(f"bot [{event.self_id}] sing song title query in group [{event.group_id}]: {progress}")
 
     if not progress:
         return
-    if not await guard_command_cooldown(
-        song_title_cmd, event, "sing.song_title", speak=False
-    ):
+    if not await guard_command_cooldown(song_title_cmd, event, "sing.song_title", speak=False):
         return
     song_title = await get_song_title(progress.song_id)
     if not song_title:
