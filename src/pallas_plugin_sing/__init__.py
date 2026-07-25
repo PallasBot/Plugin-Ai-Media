@@ -19,6 +19,7 @@ from pallas.api.metadata import (
     usage_line,
 )
 from pallas.api.perm import group_message_permission_for_command
+from pallas.api.platform import llm_command_tool_row
 from pallas.core.foundation.db.modules import SingProgress
 from pallas.core.shared.utils import HTTPXClient
 from pallas.product.llm.knowledge.declare import knowledge_source_row
@@ -72,6 +73,54 @@ __plugin_meta__ = PluginMetadata(
             {"id": "sing.song_title", "cd_sec": 2},
             {"id": "sing.ncm_login", "cd_sec": 5},
             {"id": "sing.ncm_logout", "cd_sec": 5},
+        ],
+        "llm_tools": [
+            llm_command_tool_row(
+                name="sing.sing",
+                command_id="sing.sing",
+                description="按歌名 AI 翻唱。用户明确要求唱歌、唱一首、翻唱某歌时使用。",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "song": {
+                            "type": "string",
+                            "description": "歌曲名，尽量保留用户原话",
+                        },
+                    },
+                    "required": ["song"],
+                },
+                command_template="牛牛唱歌 {song}",
+            ),
+            llm_command_tool_row(
+                name="sing.continue",
+                command_id="sing.sing",
+                description="续唱上一首未完成的歌。用户说继续唱、接着唱时使用。",
+                parameters={"type": "object", "properties": {}},
+                command_template="牛牛继续唱",
+            ),
+            llm_command_tool_row(
+                name="sing.request_song",
+                command_id="sing.request_song",
+                description="点播网易云原曲。用户明确要求点歌、放原曲时使用。",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "song": {
+                            "type": "string",
+                            "description": "歌曲名，尽量保留用户原话",
+                        },
+                    },
+                    "required": ["song"],
+                },
+                command_template="牛牛点歌 {song}",
+            ),
+            llm_command_tool_row(
+                name="sing.song_title",
+                command_id="sing.song_title",
+                description="查询当前正在唱/播的歌名。用户问什么歌、哪首歌时使用。",
+                parameters={"type": "object", "properties": {}},
+                command_template="牛牛什么歌",
+            ),
         ],
         "menu_data": [
             {
@@ -147,6 +196,14 @@ __plugin_meta__ = PluginMetadata(
                             "用于播放需登录支持的内容（维护者向口令）。"
                         ),
                         "keywords": "网易云,登录,登出,会员",
+                    },
+                    {
+                        "title": "与口令工具的分工",
+                        "content": (
+                            "闲聊中若用户要唱歌或点歌，可调用 sing.sing / sing.request_song 等工具；"
+                            "效果与「牛牛唱歌 / 牛牛点歌」一致，不要编造其它入口。"
+                        ),
+                        "keywords": "工具,口令,唱歌,点歌",
                     },
                 ],
             ),
