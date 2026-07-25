@@ -5,6 +5,11 @@
 
 ## [Unreleased]
 
+
+## [$new] - $TODAY
+
+- chore(ci): 对齐 ruff 0.16 与主仓 ruff.toml，修复 lint
+
 ## [4.1.0] - 2026-07-24
 
 - breaking: 移除 `pallas_plugin_chat`；酒后对话改由本体 `llm_chat` 承接（可选 `CHAT_TTS_ENABLE` 走 AI 仓 TTS）
