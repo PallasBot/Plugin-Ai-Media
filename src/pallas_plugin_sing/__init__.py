@@ -690,6 +690,13 @@ async def handle_request_song(bot: Bot, event: GroupMessageEvent, state: T_State
         )
     await sync_task_id_alias(request_id, str(task_id), task_payload)
 
+    await GroupConfig(event.group_id).update_sing_progress(
+        SingProgress(
+            song_id=str(song_id),
+            chunk_index=0,
+            key=0,
+        )
+    )
     await safe_finish(request_song_msg, "欢呼吧！")
 
 

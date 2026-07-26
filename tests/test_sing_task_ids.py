@@ -73,6 +73,9 @@ def _bootstrap_stub_modules() -> None:
     ulid.ULID = lambda: "local-request-id"
     _install_stub("ulid", ulid)
 
+    _install_stub("pallas", types.ModuleType("pallas"))
+    _install_stub("pallas.api", types.ModuleType("pallas.api"))
+
     cmd_defaults = types.ModuleType("pallas.api.metadata")
     cmd_defaults.PLUGIN_EXTRA_VERSION = "4.0.1"
     cmd_defaults.PLUGIN_HOMEPAGE = "https://example.com"
@@ -103,6 +106,10 @@ def _bootstrap_stub_modules() -> None:
     perm_mod = types.ModuleType("pallas.api.perm")
     perm_mod.group_message_permission_for_command = lambda *_a, **_k: object()
     _install_stub("pallas.api.perm", perm_mod)
+
+    platform_mod = types.ModuleType("pallas.api.platform")
+    platform_mod.llm_command_tool_row = lambda **kwargs: kwargs
+    _install_stub("pallas.api.platform", platform_mod)
 
     db_mod = types.ModuleType("pallas.core.foundation.db.modules")
     db_mod.SingProgress = lambda **kwargs: types.SimpleNamespace(**kwargs)
@@ -254,4 +261,50 @@ async def test_play_dispatch_uses_request_id_endpoint_and_keeps_request_id_task(
     assert removed == []
     assert [task_id for task_id, _ in added] == ["local-request-id"]
     assert added[0][1]["task_type"] == "play"
+    assert matcher.sent == ["欢呼吧！"]
+
+
+@pytest.mark.asyncio
+async def test_request_song_updates_sing_progress(monkeypatch: pytest.MonkeyPatch) -> None:
+    added: list[tuple[str, dict]] = []
+    matcher = DummyMatcher()
+    config = DummyConfig(42)
+
+    class DummyBot:
+        self_id = "123456"
+
+    class DummyEvent:
+        group_id = 42
+
+    async def fake_add_task(task_id: str, payload: dict) -> None:
+        added.append((task_id, dict(payload)))
+
+    async def fake_post(url: str, json: dict | None = None):
+        assert url.endswith("/api/request/local-request-id")
+        assert json == {"song_id": 1474697449}
+        return DummyResponse("remote-request-task-id")
+
+    async def fake_finish_on_cooldown(*_args, **_kwargs) -> bool:
+        return True
+
+    async def fake_get_song_id(song_name: str):
+        assert song_name == "随机"
+        return 1474697449
+
+    monkeypatch.setattr(sing_mod, "request_song_msg", matcher)
+    monkeypatch.setattr(sing_mod, "GroupConfig", lambda group_id: config)
+    monkeypatch.setattr(sing_mod.TaskManager, "add_task", fake_add_task)
+    monkeypatch.setattr(sing_mod.HTTPXClient, "post", fake_post)
+    monkeypatch.setattr(sing_mod, "finish_on_cooldown", fake_finish_on_cooldown)
+    monkeypatch.setattr(sing_mod, "get_song_id", fake_get_song_id)
+
+    with pytest.raises(sing_mod.FinishedException):
+        await sing_mod.handle_request_song(DummyBot(), DummyEvent(), {"song_name": "随机"})
+
+    assert [task_id for task_id, _ in added] == ["local-request-id"]
+    assert added[0][1]["task_type"] == "request"
+    assert config.updated_progress is not None
+    assert config.updated_progress.song_id == "1474697449"
+    assert config.updated_progress.chunk_index == 0
+    assert config.updated_progress.key == 0
     assert matcher.sent == ["欢呼吧！"]

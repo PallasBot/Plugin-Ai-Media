@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+## [4.1.7] - 2026-07-26
+
+- fix(sing): 点歌下发后写入 sing_progress，避免「什么歌」读到旧曲目
+
 ## [4.1.6] - 2026-07-26
 
 - feat(llm_tools): 点歌 hints 补充放首/来首口语
