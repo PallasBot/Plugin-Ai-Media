@@ -5,6 +5,11 @@
 
 ## [Unreleased]
 
+## [4.1.4] - 2026-07-26
+
+- feat(config): WebUI 配置字段增加 ui_group 分组与 ui_order 排序
+
+
 ## [4.1.3] - 2026-07-25
 
 - feat: 声明群口令 `llm_tools`，供闲聊 selective 工具调用

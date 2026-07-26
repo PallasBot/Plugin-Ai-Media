@@ -2,6 +2,10 @@ from pallas.api.config import field_help, install_hot_reload_config
 from pydantic import BaseModel, Field
 
 
+def _ui(group: str, order: int, **extra: object) -> dict[str, object]:
+    return {"ui_group": group, "ui_order": order, **extra}
+
+
 class Config(BaseModel, extra="ignore"):
     ai_server_host: str = Field(
         default="127.0.0.1",
@@ -9,6 +13,7 @@ class Config(BaseModel, extra="ignore"):
             "点歌/唱歌服务所在机器的地址",
             "本机填 127.0.0.1；服务在别的机器上填其 IP 或域名",
         ),
+        json_schema_extra=_ui("服务地址", 10),
     )
     ai_server_port: int = Field(
         default=9099,
@@ -16,6 +21,7 @@ class Config(BaseModel, extra="ignore"):
             "点歌/唱歌服务监听的端口",
             "填整数，需与后端实际监听端口一致",
         ),
+        json_schema_extra=_ui("服务地址", 20),
     )
     sing_enable: bool = Field(
         default=False,
@@ -23,6 +29,7 @@ class Config(BaseModel, extra="ignore"):
             "是否启用唱歌与播放相关命令",
             "开启前请确认后端服务已部署且地址正确",
         ),
+        json_schema_extra=_ui("唱歌", 10),
     )
     sing_endpoint: str = Field(
         default="/api/sing",
@@ -31,6 +38,7 @@ class Config(BaseModel, extra="ignore"):
             "以 / 开头的路径，会拼在「主机:端口」后面",
             "legacy 模式使用；media_task 模式改走 /api/media/tasks",
         ),
+        json_schema_extra=_ui("服务地址", 30),
     )
     sing_runtime_mode: str = Field(
         default="legacy",
@@ -38,6 +46,7 @@ class Config(BaseModel, extra="ignore"):
             "唱歌任务提交模式",
             "legacy 直连 /api/sing；media_task 走 AI 仓统一媒体任务 API",
         ),
+        json_schema_extra=_ui("唱歌", 20),
     )
     play_endpoint: str = Field(
         default="/api/play",
@@ -46,6 +55,7 @@ class Config(BaseModel, extra="ignore"):
             "将以 POST /{request_id} 形式调用，并在 body 中传 speaker",
             "以 / 开头；留空或错误会导致播放失败",
         ),
+        json_schema_extra=_ui("服务地址", 40),
     )
     request_endpoint: str = Field(
         default="/api/request",
@@ -53,14 +63,18 @@ class Config(BaseModel, extra="ignore"):
             "唱歌排队请求的接口路径",
             "通用配置页「服务网关」主要使用此项做连通检测",
         ),
+        json_schema_extra=_ui("服务地址", 50),
     )
-    sing_length: int = Field(default=120, description="单次合成音频的默认最大时长（秒），具体以后端为准。")
+    sing_length: int = Field(
+        default=120, description="单次合成音频的默认最大时长（秒），具体以后端为准。", json_schema_extra=_ui("唱歌", 30)
+    )
     sing_speakers: dict[str, str] = Field(
         default_factory=lambda: {
             "帕拉斯": "pallas",
             "牛牛": "pallas",
         },
         description="唱歌的音色映射",
+        json_schema_extra=_ui("唱歌", 40),
     )
     sing_rule_debug: bool = Field(
         default=False,
@@ -68,6 +82,7 @@ class Config(BaseModel, extra="ignore"):
             "是否在日志中输出每条消息的 rule 匹配跳过原因",
             "仅排障时开启；群消息量大时 INFO 级刷屏会拖慢 worker",
         ),
+        json_schema_extra=_ui("排障", 10),
     )
 
 
