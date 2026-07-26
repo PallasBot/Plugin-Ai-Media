@@ -78,7 +78,10 @@ __plugin_meta__ = PluginMetadata(
             llm_command_tool_row(
                 name="sing.sing",
                 command_id="sing.sing",
-                description="按歌名 AI 翻唱。用户明确要求唱歌、唱一首、翻唱某歌时使用。",
+                description=(
+                    "按歌名 AI 翻唱。用户明确要求唱歌、唱一首、翻唱、来一首、音乐翻唱时使用；"
+                    "与点播原曲不同。"
+                ),
                 parameters={
                     "type": "object",
                     "properties": {
@@ -90,6 +93,7 @@ __plugin_meta__ = PluginMetadata(
                     "required": ["song"],
                 },
                 command_template="牛牛唱歌 {song}",
+                hints=["唱歌", "唱一首", "翻唱", "来一首", "来首歌", "音乐"],
             ),
             llm_command_tool_row(
                 name="sing.continue",
@@ -97,11 +101,14 @@ __plugin_meta__ = PluginMetadata(
                 description="续唱上一首未完成的歌。用户说继续唱、接着唱时使用。",
                 parameters={"type": "object", "properties": {}},
                 command_template="牛牛继续唱",
+                hints=["继续唱", "接着唱"],
             ),
             llm_command_tool_row(
                 name="sing.request_song",
                 command_id="sing.request_song",
-                description="点播网易云原曲。用户明确要求点歌、放原曲时使用。",
+                description=(
+                    "点播网易云原曲。用户明确要求点歌、放歌、放首歌、听歌、播歌、牛牛音乐时使用。"
+                ),
                 parameters={
                     "type": "object",
                     "properties": {
@@ -113,6 +120,7 @@ __plugin_meta__ = PluginMetadata(
                     "required": ["song"],
                 },
                 command_template="牛牛点歌 {song}",
+                hints=["点歌", "放歌", "放首歌", "听歌", "播歌", "播放歌曲", "音乐", "牛牛音乐"],
             ),
             llm_command_tool_row(
                 name="sing.song_title",
@@ -120,6 +128,7 @@ __plugin_meta__ = PluginMetadata(
                 description="查询当前正在唱/播的歌名。用户问什么歌、哪首歌时使用。",
                 parameters={"type": "object", "properties": {}},
                 command_template="牛牛什么歌",
+                hints=["什么歌", "哪首歌"],
             ),
         ],
         "menu_data": [
