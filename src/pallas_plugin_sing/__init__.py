@@ -117,7 +117,7 @@ __plugin_meta__ = PluginMetadata(
                     "required": ["song"],
                 },
                 command_template="牛牛点歌 {song}",
-                hints=["点歌", "放歌", "放首歌", "听歌", "播歌", "播放歌曲", "音乐", "牛牛音乐"],
+                hints=["点歌", "放歌", "放首歌", "放首", "来首", "听歌", "播歌", "播放歌曲", "音乐", "牛牛音乐"],
             ),
             llm_command_tool_row(
                 name="sing.song_title",
