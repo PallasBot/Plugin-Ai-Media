@@ -79,8 +79,7 @@ __plugin_meta__ = PluginMetadata(
                 name="sing.sing",
                 command_id="sing.sing",
                 description=(
-                    "按歌名 AI 翻唱。用户明确要求唱歌、唱一首、翻唱、来一首、音乐翻唱时使用；"
-                    "与点播原曲不同。"
+                    "按歌名 AI 翻唱。用户明确要求唱歌、唱一首、翻唱、来一首、音乐翻唱时使用；与点播原曲不同。"
                 ),
                 parameters={
                     "type": "object",
@@ -106,9 +105,7 @@ __plugin_meta__ = PluginMetadata(
             llm_command_tool_row(
                 name="sing.request_song",
                 command_id="sing.request_song",
-                description=(
-                    "点播网易云原曲。用户明确要求点歌、放歌、放首歌、听歌、播歌、牛牛音乐时使用。"
-                ),
+                description=("点播网易云原曲。用户明确要求点歌、放歌、放首歌、听歌、播歌、牛牛音乐时使用。"),
                 parameters={
                     "type": "object",
                     "properties": {
