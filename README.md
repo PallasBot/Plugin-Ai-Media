@@ -2,9 +2,9 @@
   <img src="./assets/brand-avatar.png" width="220" height="220" alt="牛牛唱歌">
 </p>
 
-<h1 align="center">牛牛唱歌 pallas-plugin-ai-media</h1>
+<h1 align="center">牛牛唱歌 / 牛牛说 pallas-plugin-ai-media</h1>
 
-<p align="center">提供牛牛唱歌能力（翻唱 / 点歌），依赖 Pallas-Bot-AI 媒体服务。</p>
+<p align="center">提供牛牛唱歌与文字转语音（TTS），依赖 Pallas-Bot-AI 媒体服务。</p>
 
 <p align="center">
   <img alt="官方插件" src="https://img.shields.io/badge/%E5%AE%98%E6%96%B9%E6%8F%92%E4%BB%B6-FE7D37">
@@ -29,7 +29,7 @@ uv run pallas ext install pallas-plugin-ai-media
 uv pip install pallas-plugin-ai-media
 ```
 
-> 酒后对话已由本体 `llm_chat` 承接（含可选 AI 仓 TTS）。本包自 4.1.0 起不再包含 `chat` 子插件。
+> 酒后对话由本体 `llm_chat` 承接（纯文字）。语音请用本包「牛牛说」。
 
 ## 怎么使用
 
@@ -50,23 +50,36 @@ AI 翻唱、续唱、点歌与查歌名；依赖 AI 仓与本体 `callback` 回�
 | `sing.ncm_login` | 仅超管 |
 | `sing.ncm_logout` | 仅超管 |
 
+### 牛牛说（tts）
+
+| 口令 / 触发 | 场景 | 说明 |
+| --- | --- | --- |
+| `牛牛说 〈文本〉` | 群内 | 侧车 TTS 合成语音 |
+
+| 命令 ID | 默认等级 |
+| --- | --- |
+| `tts.speak` | 所有人 |
+
 > 详细用法、限制条件和可用范围以帮助为主。
 
 ## 配置项
 
 > 可在控制台对应插件页中修改。
 
-唱歌配置见 [`src/pallas_plugin_sing/config.py`](src/pallas_plugin_sing/config.py)。
+- 唱歌：[`src/pallas_plugin_sing/config.py`](src/pallas_plugin_sing/config.py)
+- TTS：[`src/pallas_plugin_tts/config.py`](src/pallas_plugin_tts/config.py)（含 `/v1` Bearer、`route=sidecar|cloud`）
 
 ## 排障
 
 | 现象 | 处理 |
 | --- | --- |
 | 唱歌无语音 | 查 AI 服务、`/callback` 可达；**牛牛连通** 测唱歌网关 |
+| 「牛牛说」无语音 | 确认插件页已启用 TTS；`/v1/tts` 与 Bearer 与 AI 侧一致；音色默认已配置 |
 
 ## 实现
 
-源码位置：[`src/pallas_plugin_sing/`](src/pallas_plugin_sing/)
+- [`src/pallas_plugin_sing/`](src/pallas_plugin_sing/)
+- [`src/pallas_plugin_tts/`](src/pallas_plugin_tts/)
 
 ## 相关链接
 

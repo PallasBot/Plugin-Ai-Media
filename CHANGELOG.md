@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+- feat(tts): 新增 `pallas_plugin_tts`（口令「牛牛说」→ 侧车 `/v1/tts`，预留 cloud 通路）
+
 ## [4.1.8] - 2026-07-26
 
 - feat(llm_tools): 点歌 hints 补充我想听等口语

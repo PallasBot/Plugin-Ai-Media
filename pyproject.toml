@@ -1,7 +1,7 @@
 [project]
 name = "pallas-plugin-ai-media"
 version = "4.1.8"
-description = "Pallas-Bot 官方扩展：牛牛唱歌。"
+description = "Pallas-Bot 官方扩展：牛牛唱歌与牛牛说（TTS）。"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.12,<4.0"
@@ -22,7 +22,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pallas_plugin_sing"]
+packages = ["src/pallas_plugin_sing", "src/pallas_plugin_tts"]
 
 [tool.nonebot]
 plugin_dirs = []
@@ -30,7 +30,7 @@ builtin_plugins = []
 
 [tool.nonebot.plugins]
 "@local" = []
-pallas-plugin-ai-media = ['pallas_plugin_sing']
+pallas-plugin-ai-media = ['pallas_plugin_sing', 'pallas_plugin_tts']
 
 [tool.nonebot.adapters]
 "@local" = []
