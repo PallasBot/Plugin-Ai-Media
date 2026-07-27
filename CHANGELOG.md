@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-07-27
+
 - feat(tts): 新增 `pallas_plugin_tts`（口令「牛牛说」→ 侧车 `/v1/tts`，预留 cloud 通路）
 
 ## [4.1.8] - 2026-07-26
