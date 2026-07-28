@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+## [4.2.1] - 2026-07-28
+
+- fix(tts): `api_token` 经 `field_to_env` 读取 `TTS_API_TOKEN`，修复侧车 `/v1/tts` 401
+
 ## [4.2.0] - 2026-07-27
 
 - feat(tts): 新增 `pallas_plugin_tts`（口令「牛牛说」→ 侧车 `/v1/tts`，预留 cloud 通路）
