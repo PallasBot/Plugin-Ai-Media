@@ -10,9 +10,6 @@ def _ui(group: str, order: int, **extra: object) -> dict[str, object]:
     return {"ui_group": group, "ui_order": order, **extra}
 
 
-TtsRoute = Literal["sidecar", "cloud"]
-
-
 class Config(BaseModel, extra="ignore"):
     tts_enable: bool = Field(
         default=False,
@@ -54,7 +51,7 @@ class Config(BaseModel, extra="ignore"):
         ),
         json_schema_extra=_ui("服务地址", 40, secret=True),
     )
-    tts_route: TtsRoute = Field(
+    tts_route: Literal["sidecar", "cloud"] = Field(
         default="sidecar",
         description=field_help(
             "语音合成走哪条通路",
@@ -84,6 +81,9 @@ class Config(BaseModel, extra="ignore"):
     )
 
 
+Config.model_rebuild()
+
+
 def on_tts_config_reload(cfg: Config) -> None:
     from packages.help.plugin_availability import (
         invalidate_plugin_help_availability_cache,
@@ -92,7 +92,23 @@ def on_tts_config_reload(cfg: Config) -> None:
     invalidate_plugin_help_availability_cache()
 
 
-plugin_webui = install_hot_reload_config(Config, config_module=__name__, on_reload=on_tts_config_reload)
+_FIELD_TO_ENV = {
+    "tts_enable": "TTS_ENABLE",
+    "ai_server_host": "AI_SERVER_HOST",
+    "ai_server_port": "AI_SERVER_PORT",
+    "tts_endpoint": "TTS_ENDPOINT",
+    "api_token": "TTS_API_TOKEN",
+    "tts_route": "TTS_ROUTE",
+    "tts_timeout_sec": "TTS_TIMEOUT_SEC",
+    "tts_max_chars": "TTS_MAX_CHARS",
+}
+
+plugin_webui = install_hot_reload_config(
+    Config,
+    config_module=__name__,
+    on_reload=on_tts_config_reload,
+    field_to_env=_FIELD_TO_ENV,
+)
 get_tts_config = plugin_webui.get
 reload_tts_config = plugin_webui.reload
 clear_tts_config_cache = plugin_webui.clear_cache
