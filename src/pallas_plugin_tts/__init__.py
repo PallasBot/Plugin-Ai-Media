@@ -1,5 +1,4 @@
 from nonebot.plugin import PluginMetadata
-
 from pallas.api.commands import (
     bind_alias_handlers,
     command_limit_list,
