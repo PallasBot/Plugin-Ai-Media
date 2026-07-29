@@ -64,17 +64,19 @@ AI 翻唱、续唱、点歌与查歌名；依赖 AI 仓与本体 `callback` 回�
 
 ## 配置项
 
-> 可在控制台对应插件页中修改。
+> 推荐在控制台 **AI 配置 · 媒体**：服务地址与 Bearer 在「媒体服务」连接里配置；音色映射 / 启停等在「唱歌」「TTS」面板（与插件页同源）。
 
 - 唱歌：[`src/pallas_plugin_sing/config.py`](src/pallas_plugin_sing/config.py)
-- TTS：[`src/pallas_plugin_tts/config.py`](src/pallas_plugin_tts/config.py)（含 `/v1` Bearer、`route=sidecar|cloud`）
+- TTS：[`src/pallas_plugin_tts/config.py`](src/pallas_plugin_tts/config.py)
+
+自备唱歌音色放到 AI 仓 `resource/sing/models/<音色名>/`。
 
 ## 排障
 
 | 现象 | 处理 |
 | --- | --- |
 | 唱歌无语音 | 查 AI 服务、`/callback` 可达；**牛牛连通** 测唱歌网关 |
-| 「牛牛说」无语音 | 确认插件页已启用 TTS；`/v1/tts` 与 Bearer 与 AI 侧一致；音色默认已配置 |
+| 「牛牛说」无语音 | 确认已启用 TTS；媒体服务 Bearer 与 AI 侧 `PALLAS_AI_API_TOKEN` 一致；音色默认已配置 |
 
 ## 实现
 

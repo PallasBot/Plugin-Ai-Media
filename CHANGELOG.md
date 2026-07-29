@@ -5,6 +5,11 @@
 
 ## [Unreleased]
 
+## [4.3.0] - 2026-07-29
+
+- feat(config): 服务地址 / Bearer 改由 AI 配置 · 媒体服务统一管理；唱歌与 TTS 插件页隐藏相关字段，运行时优先读 `AI_SERVER_*` / `TTS_API_TOKEN`
+- feat(config): 音色映射、默认合成时长等业务项仍在插件配置（控制台媒体页可嵌入）
+
 ## [4.2.1] - 2026-07-28
 
 - fix(tts): `api_token` 经 `field_to_env` 读取 `TTS_API_TOKEN`，修复侧车 `/v1/tts` 401

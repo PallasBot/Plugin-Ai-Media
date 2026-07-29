@@ -1,6 +1,8 @@
 from pallas.api.config import field_help, install_hot_reload_config
 from pydantic import BaseModel, Field
 
+from pallas_plugin_ai_media_runtime.conn import resolve_ai_server_url
+
 
 def _ui(group: str, order: int, **extra: object) -> dict[str, object]:
     return {"ui_group": group, "ui_order": order, **extra}
@@ -11,17 +13,17 @@ class Config(BaseModel, extra="ignore"):
         default="127.0.0.1",
         description=field_help(
             "点歌/唱歌服务所在机器的地址",
-            "本机填 127.0.0.1；服务在别的机器上填其 IP 或域名",
+            "由 AI 配置 · 媒体服务统一管理；此处仅作兼容回退",
         ),
-        json_schema_extra=_ui("服务地址", 10),
+        json_schema_extra=_ui("服务地址", 10, ui_hidden=True),
     )
     ai_server_port: int = Field(
         default=9099,
         description=field_help(
             "点歌/唱歌服务监听的端口",
-            "填整数，需与后端实际监听端口一致",
+            "由 AI 配置 · 媒体服务统一管理；此处仅作兼容回退",
         ),
-        json_schema_extra=_ui("服务地址", 20),
+        json_schema_extra=_ui("服务地址", 20, ui_hidden=True),
     )
     sing_enable: bool = Field(
         default=False,
@@ -38,7 +40,7 @@ class Config(BaseModel, extra="ignore"):
             "以 / 开头的路径，会拼在「主机:端口」后面",
             "legacy 模式使用；media_task 模式改走 /api/media/tasks",
         ),
-        json_schema_extra=_ui("服务地址", 30),
+        json_schema_extra=_ui("服务地址", 30, ui_hidden=True),
     )
     sing_runtime_mode: str = Field(
         default="legacy",
@@ -55,7 +57,7 @@ class Config(BaseModel, extra="ignore"):
             "将以 POST /{request_id} 形式调用，并在 body 中传 speaker",
             "以 / 开头；留空或错误会导致播放失败",
         ),
-        json_schema_extra=_ui("服务地址", 40),
+        json_schema_extra=_ui("服务地址", 40, ui_hidden=True),
     )
     request_endpoint: str = Field(
         default="/api/request",
@@ -63,7 +65,7 @@ class Config(BaseModel, extra="ignore"):
             "唱歌排队请求的接口路径",
             "通用配置页「服务网关」主要使用此项做连通检测",
         ),
-        json_schema_extra=_ui("服务地址", 50),
+        json_schema_extra=_ui("服务地址", 50, ui_hidden=True),
     )
     sing_length: int = Field(
         default=120, description="单次合成音频的默认最大时长（秒），具体以后端为准。", json_schema_extra=_ui("唱歌", 30)
@@ -94,7 +96,17 @@ def on_sing_config_reload(cfg: Config) -> None:
     invalidate_plugin_help_availability_cache()
 
 
-plugin_webui = install_hot_reload_config(Config, config_module=__name__, on_reload=on_sing_config_reload)
+_FIELD_TO_ENV = {
+    "ai_server_host": "AI_SERVER_HOST",
+    "ai_server_port": "AI_SERVER_PORT",
+}
+
+plugin_webui = install_hot_reload_config(
+    Config,
+    config_module=__name__,
+    on_reload=on_sing_config_reload,
+    field_to_env=_FIELD_TO_ENV,
+)
 get_sing_config = plugin_webui.get
 reload_sing_config = plugin_webui.reload
 clear_sing_config_cache = plugin_webui.clear_cache
@@ -102,7 +114,10 @@ clear_sing_config_cache = plugin_webui.clear_cache
 
 def sing_server_url(cfg: Config | None = None) -> str:
     c = cfg or get_sing_config()
-    return f"http://{c.ai_server_host}:{c.ai_server_port}"
+    return resolve_ai_server_url(
+        fallback_host=str(c.ai_server_host or "127.0.0.1"),
+        fallback_port=int(c.ai_server_port or 9099),
+    )
 
 
 def sing_runtime_mode(cfg: Config | None = None) -> str:

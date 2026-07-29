@@ -5,6 +5,8 @@ from typing import Literal
 from pallas.api.config import field_help, install_hot_reload_config
 from pydantic import BaseModel, Field
 
+from pallas_plugin_ai_media_runtime.conn import resolve_ai_server_url, resolve_media_bearer_token
+
 
 def _ui(group: str, order: int, **extra: object) -> dict[str, object]:
     return {"ui_group": group, "ui_order": order, **extra}
@@ -23,17 +25,17 @@ class Config(BaseModel, extra="ignore"):
         default="127.0.0.1",
         description=field_help(
             "TTS 媒体服务所在机器的地址",
-            "本机填 127.0.0.1；服务在别的机器上填其 IP 或域名",
+            "由 AI 配置 · 媒体服务统一管理；此处仅作兼容回退",
         ),
-        json_schema_extra=_ui("服务地址", 10),
+        json_schema_extra=_ui("服务地址", 10, ui_hidden=True),
     )
     ai_server_port: int = Field(
         default=9099,
         description=field_help(
             "TTS 媒体服务监听的端口",
-            "填整数，需与后端实际监听端口一致",
+            "由 AI 配置 · 媒体服务统一管理；此处仅作兼容回退",
         ),
-        json_schema_extra=_ui("服务地址", 20),
+        json_schema_extra=_ui("服务地址", 20, ui_hidden=True),
     )
     tts_endpoint: str = Field(
         default="/v1/tts",
@@ -41,15 +43,15 @@ class Config(BaseModel, extra="ignore"):
             "提交 TTS 任务的接口路径",
             "以 / 开头；推荐 /v1/tts（需 Bearer）；旧路径可用 /api/tts",
         ),
-        json_schema_extra=_ui("服务地址", 30),
+        json_schema_extra=_ui("服务地址", 30, ui_hidden=True),
     )
     api_token: str = Field(
         default="",
         description=field_help(
             "调用 /v1 时的 Bearer Token",
-            "须与 AI 侧 PALLAS_AI_API_TOKEN 一致；Token 为空且 AI 未强制鉴权时可留空",
+            "由 AI 配置 · 媒体服务统一管理；须与 AI 侧 PALLAS_AI_API_TOKEN 一致",
         ),
-        json_schema_extra=_ui("服务地址", 40, secret=True),
+        json_schema_extra=_ui("服务地址", 40, secret=True, ui_hidden=True),
     )
     tts_route: Literal["sidecar", "cloud"] = Field(
         default="sidecar",
@@ -116,12 +118,15 @@ clear_tts_config_cache = plugin_webui.clear_cache
 
 def tts_server_url(cfg: Config | None = None) -> str:
     c = cfg or get_tts_config()
-    return f"http://{c.ai_server_host}:{c.ai_server_port}"
+    return resolve_ai_server_url(
+        fallback_host=str(c.ai_server_host or "127.0.0.1"),
+        fallback_port=int(c.ai_server_port or 9099),
+    )
 
 
 def tts_auth_headers(cfg: Config | None = None) -> dict[str, str]:
     c = cfg or get_tts_config()
-    token = (c.api_token or "").strip()
+    token = resolve_media_bearer_token(fallback=str(c.api_token or ""))
     if not token:
         return {}
     return {"Authorization": f"Bearer {token}"}
