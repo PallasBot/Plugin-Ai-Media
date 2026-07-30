@@ -5,6 +5,11 @@
 
 ## [Unreleased]
 
+## [4.3.1] - 2026-07-30
+
+- fix(tts): 「牛牛说」后须有空格，避免「牛牛说啥呢」误触发
+- feat(tts): soft-recall hints 补充「念出来」「把你的话」等
+
 ## [4.3.0] - 2026-07-29
 
 - feat(config): 服务地址 / Bearer 改由 AI 配置 · 媒体服务统一管理；唱歌与 TTS 插件页隐藏相关字段，运行时优先读 `AI_SERVER_*` / `TTS_API_TOKEN`
