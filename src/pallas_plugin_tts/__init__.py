@@ -54,13 +54,26 @@ __plugin_meta__ = PluginMetadata(
                     "properties": {
                         "text": {
                             "type": "string",
-                            "description": "要念出的正文，尽量保留用户原话",
+                            "description": (
+                                "要念出的正文。用户要念「上一句/你的话/引用内容」时，"
+                                "填被回复或上下文中的原文，不要另编一句"
+                            ),
                         },
                     },
                     "required": ["text"],
                 },
                 command_template="牛牛说 {text}",
-                hints=["念一下", "读出来", "语音播报", "说出来", "牛牛说"],
+                hints=[
+                    "念一下",
+                    "念出来",
+                    "念一遍",
+                    "读出来",
+                    "读一下",
+                    "语音播报",
+                    "说出来",
+                    "把你的话",
+                    "牛牛说",
+                ],
             ),
         ],
         "menu_data": [
@@ -71,7 +84,10 @@ __plugin_meta__ = PluginMetadata(
                 "trigger_condition": "牛牛说 〈文本〉",
                 "command_permission": f"{PLUGIN_ID}.speak",
                 "brief_des": "文字转语音",
-                "detail_des": "依赖 AI Runtime TTS；在插件页配置侧车地址与通路。",
+                "detail_des": (
+                    "「牛牛说」后须加空格再跟正文。依赖 AI Runtime TTS；"
+                    "酒后对话自动附带语音见智能对话配置，与本命令独立。"
+                ),
             },
         ],
         "knowledge_sources": [
@@ -83,10 +99,11 @@ __plugin_meta__ = PluginMetadata(
                     {
                         "title": "牛牛说",
                         "content": (
-                            "发送「牛牛说 内容」可将文字合成语音发出；"
+                            "发送「牛牛说 内容」（中间有空格）可将文字合成语音发出；"
                             "需安装 pallas-plugin-ai-media 并启用 TTS，配置侧车 AI Runtime。"
+                            "酒后对话是否自动跟语音由智能对话里的「酒后附带语音」配置决定。"
                         ),
-                        "keywords": "牛牛说,TTS,语音,念,读出来",
+                        "keywords": "牛牛说,TTS,语音,念,读出来,念出来",
                     },
                 ],
             ),

@@ -23,11 +23,20 @@ def _load_text_module():
 
 text_mod = _load_text_module()
 extract_speak_text = text_mod.extract_speak_text
+is_speak_command_text = text_mod.is_speak_command_text
 
 
 def test_extract_speak_text_strips_prefix() -> None:
     assert extract_speak_text("牛牛说 你好呀") == "你好呀"
-    assert extract_speak_text("牛牛说你好") == "你好"
     assert extract_speak_text("牛牛说 第一行\n第二行") == "第一行"
-    assert extract_speak_text("随便说说") == "随便说说"
+    assert extract_speak_text("随便说说") == ""
     assert extract_speak_text("") == ""
+
+
+def test_speak_command_requires_space_after_prefix() -> None:
+    assert is_speak_command_text("牛牛说 你好")
+    assert is_speak_command_text("牛牛说")
+    assert not is_speak_command_text("牛牛说啥呢")
+    assert not is_speak_command_text("牛牛说你好")
+    assert extract_speak_text("牛牛说啥呢") == ""
+    assert extract_speak_text("牛牛说你好") == ""

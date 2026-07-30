@@ -11,14 +11,14 @@ from pallas.core.shared.utils import HTTPXClient
 from ulid import ULID
 
 from .config import get_tts_config, tts_auth_headers, tts_server_url
-from .text import extract_speak_text
+from .text import extract_speak_text, is_speak_command_text
 
 if TYPE_CHECKING:
     from pallas.api.commands import PluginHandlerContext
 
 TTS_TASK_TYPE = "tts"
 
-__all__ = ["extract_speak_text", "handle_speak", "response_task_id"]
+__all__ = ["extract_speak_text", "handle_speak", "is_speak_command_text", "response_task_id"]
 
 
 def response_task_id(response) -> str:
@@ -51,9 +51,15 @@ async def handle_speak(ctx: PluginHandlerContext) -> None:
         await ctx.finish("请在群里使用「牛牛说」。")
         return
 
-    text = extract_speak_text(ctx.plain_text)
+    raw = (ctx.plain_text or "").strip()
+    # 粘连误触发（如「牛牛说啥呢」）：前缀后无空白 → 交回其它 matcher
+    if raw.startswith("牛牛说") and not is_speak_command_text(raw):
+        await ctx.matcher.skip()
+        return
+
+    text = extract_speak_text(raw) if raw.startswith("牛牛说") else raw
     if not text:
-        await ctx.finish("用法：牛牛说 〈要念的内容〉")
+        await ctx.finish("用法：牛牛说 〈要念的内容〉（「牛牛说」后请加空格）")
         return
     max_chars = int(cfg.tts_max_chars)
     if len(text) > max_chars:
