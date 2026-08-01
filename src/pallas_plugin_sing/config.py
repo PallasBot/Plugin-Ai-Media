@@ -3,9 +3,93 @@ from pydantic import BaseModel, Field
 
 from pallas_plugin_ai_media_runtime.conn import resolve_ai_server_url
 
+# 与 __init__ 里 SING_CMD / 续唱 / 点歌 / 查歌 后缀一致；供 ingress command_prefixes 展开
+SING_COMMAND_SUFFIXES: tuple[str, ...] = (
+    "唱歌",
+    "继续唱",
+    "接着唱",
+    "点歌",
+    "什么歌",
+    "哪首歌",
+    "啥歌",
+)
+
 
 def _ui(group: str, order: int, **extra: object) -> dict[str, object]:
     return {"ui_group": group, "ui_order": order, **extra}
+
+
+def build_sing_command_prefixes(speakers: dict[str, str] | None) -> list[str]:
+    """由音频映射的命令名前缀展开为 ingress 路由前缀（如 一歌 → 一歌唱歌）。"""
+    prefixes: list[str] = []
+    seen: set[str] = set()
+    for name in (speakers or {}):
+        head = str(name or "").strip()
+        if not head:
+            continue
+        for suffix in SING_COMMAND_SUFFIXES:
+            item = f"{head}{suffix}"
+            if item in seen:
+                continue
+            seen.add(item)
+            prefixes.append(item)
+    return prefixes
+
+
+def sync_sing_ingress_command_prefixes(
+    speakers: dict[str, str] | None,
+    *,
+    meta: object | None = None,
+) -> list[str]:
+    """把 sing_speakers 同步进插件 metadata.command_prefixes，并清空 ingress 路由缓存。"""
+    prefixes = build_sing_command_prefixes(speakers)
+    targets: list[object] = []
+    if meta is not None:
+        targets.append(meta)
+    else:
+        try:
+            from pallas_plugin_sing import __plugin_meta__ as plugin_meta
+
+            targets.append(plugin_meta)
+        except Exception:
+            pass
+
+    try:
+        from nonebot import get_loaded_plugins
+
+        for plugin in get_loaded_plugins():
+            module = getattr(plugin, "module", None)
+            module_name = str(getattr(module, "__name__", "") or "")
+            if module_name != "pallas_plugin_sing" and not module_name.endswith(
+                ".pallas_plugin_sing"
+            ):
+                continue
+            loaded_meta = getattr(plugin, "metadata", None)
+            if loaded_meta is not None and loaded_meta not in targets:
+                targets.append(loaded_meta)
+            break
+    except Exception:
+        pass
+
+    for item in targets:
+        extra = getattr(item, "extra", None)
+        if isinstance(extra, dict):
+            extra["command_prefixes"] = list(prefixes)
+
+    try:
+        from pallas.core.platform.ingress.plugin_command_plaintext import (
+            clear_plugin_command_plaintext_cache,
+        )
+
+        clear_plugin_command_plaintext_cache()
+    except Exception:
+        try:
+            from pallas.core.platform.ingress.route_index import clear_route_index_cache
+
+            clear_route_index_cache()
+        except Exception:
+            pass
+    return prefixes
 
 
 class Config(BaseModel, extra="ignore"):
@@ -75,8 +159,11 @@ class Config(BaseModel, extra="ignore"):
             "帕拉斯": "pallas",
             "牛牛": "pallas",
         },
-        description="唱歌的音色映射",
-        json_schema_extra=_ui("唱歌", 40),
+        description=field_help(
+            "命令名前缀 → 音色 id",
+            "键是群里命令前缀（如「一歌」），会匹配「一歌唱歌 / 一歌点歌」等；值是媒体服务里的音色目录名",
+        ),
+        json_schema_extra=_ui("音频映射", 40),
     )
     sing_rule_debug: bool = Field(
         default=False,
@@ -89,11 +176,15 @@ class Config(BaseModel, extra="ignore"):
 
 
 def on_sing_config_reload(cfg: Config) -> None:
-    from packages.help.plugin_availability import (
-        invalidate_plugin_help_availability_cache,
-    )
+    sync_sing_ingress_command_prefixes(cfg.sing_speakers)
+    try:
+        from packages.help.plugin_availability import (
+            invalidate_plugin_help_availability_cache,
+        )
 
-    invalidate_plugin_help_availability_cache()
+        invalidate_plugin_help_availability_cache()
+    except Exception:
+        pass
 
 
 _FIELD_TO_ENV = {

@@ -25,7 +25,12 @@ from pallas.core.shared.utils import HTTPXClient
 from pallas.product.llm.knowledge.declare import knowledge_source_row
 from ulid import ULID
 
-from .config import get_sing_config, sing_server_url
+from .config import (
+    build_sing_command_prefixes,
+    get_sing_config,
+    sing_server_url,
+    sync_sing_ingress_command_prefixes,
+)
 from .ncm_login import get_song_id, get_song_title
 
 __plugin_meta__ = PluginMetadata(
@@ -45,15 +50,8 @@ __plugin_meta__ = PluginMetadata(
         "version": PLUGIN_EXTRA_VERSION,
         "menu_template": PLUGIN_MENU_TEMPLATE,
         "ingress_route": {"lane": "remote"},
-        "command_prefixes": [
-            "牛牛唱歌",
-            "牛牛继续唱",
-            "牛牛接着唱",
-            "牛牛点歌",
-            "牛牛什么歌",
-            "牛牛哪首歌",
-            "牛牛啥歌",
-        ],
+        # 启动后由 sync_sing_ingress_command_prefixes 按 sing_speakers 覆盖
+        "command_prefixes": build_sing_command_prefixes({"帕拉斯": "pallas", "牛牛": "pallas"}),
         "command_permissions": [
             {
                 "id": "sing.sing",
@@ -746,3 +744,7 @@ async def _(event: GroupMessageEvent):
         return
 
     await safe_finish(song_title_cmd, f"{song_title}")
+
+
+# 按当前音频映射展开 ingress 前缀（否则自定义前缀进不了唱歌 matcher）
+sync_sing_ingress_command_prefixes(get_sing_config().sing_speakers, meta=__plugin_meta__)

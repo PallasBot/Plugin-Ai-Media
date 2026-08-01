@@ -54,3 +54,18 @@ def test_sing_runtime_mode_normalizes_unknown_values() -> None:
 
 def test_sing_rule_debug_defaults_false() -> None:
     assert Config().sing_rule_debug is False
+
+
+def test_build_sing_command_prefixes_from_speakers() -> None:
+    build = sing_config.build_sing_command_prefixes
+    prefixes = build({"一歌": "pallas", "牛牛": "pallas"})
+    assert "一歌唱歌" in prefixes
+    assert "一歌点歌" in prefixes
+    assert "一歌继续唱" in prefixes
+    assert "牛牛唱歌" in prefixes
+    assert "一歌" not in prefixes
+
+
+def test_build_sing_command_prefixes_skips_blank_names() -> None:
+    build = sing_config.build_sing_command_prefixes
+    assert build({"": "pallas", "  ": "x"}) == []
