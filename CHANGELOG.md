@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+## [4.3.2] - 2026-08-01
+
+- fix(sing): 音频映射（`sing_speakers`）变更时同步展开为 ingress `command_prefixes`，自定义前缀如「一歌唱歌」可被路由命中
+
 ## [4.3.1] - 2026-07-30
 
 - fix(tts): 「牛牛说」后须有空格，避免「牛牛说啥呢」误触发
