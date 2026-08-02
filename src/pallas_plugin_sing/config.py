@@ -72,7 +72,10 @@ def match_bare_play_speaker(text: str, speakers: dict[str, str] | None) -> str |
 
 
 def format_sing_speakers_help(speakers: dict[str, str] | None) -> str:
-    """帮助文案：按音色 id 归组命令前缀，如 pallas（牛牛、帕拉斯）。"""
+    """帮助文案：按音色归组命令前缀，仅展示触发名（不暴露音色 id）。
+
+    例：帕拉斯、牛牛；兔兔、阿米娅
+    """
     by_voice: dict[str, list[str]] = {}
     for prefix, voice in (speakers or {}).items():
         head = str(prefix or "").strip()
@@ -84,10 +87,7 @@ def format_sing_speakers_help(speakers: dict[str, str] | None) -> str:
             bucket.append(head)
     if not by_voice:
         return ""
-    parts: list[str] = []
-    for vid, prefixes in by_voice.items():
-        parts.append(f"{vid}（{'、'.join(prefixes)}）")
-    return "、".join(parts)
+    return "；".join("、".join(prefixes) for prefixes in by_voice.values())
 
 
 def resolve_sing_plugin_metas(meta: object | None = None) -> list[object]:
@@ -135,8 +135,9 @@ def apply_sing_speakers_to_menu_data(
             # 去掉旧的「可用音色：…」尾巴，避免热载叠加
             if "可用音色：" in detail:
                 detail = detail.split("可用音色：", 1)[0].rstrip("；;。 \n")
-            detail = f"{detail.rstrip('；;。 ')}。{voice_suffix}" if detail else voice_suffix
-            item["detail_des"] = detail
+            base = detail.rstrip("；;。 \n")
+            # 另起一段，帮助图/Markdown 按段换行，避免与正文糊成一团
+            item["detail_des"] = f"{base}。\n\n{voice_suffix}" if base else voice_suffix
 
         if func == "牛牛唱歌":
             item["trigger_condition"] = "〈音色〉唱歌 歌曲名 [key=±N]"
