@@ -28,6 +28,7 @@ from ulid import ULID
 from .config import (
     build_sing_command_prefixes,
     get_sing_config,
+    match_bare_play_speaker,
     sing_server_url,
     sync_sing_ingress_command_prefixes,
 )
@@ -78,7 +79,9 @@ __plugin_meta__ = PluginMetadata(
                 name="sing.sing",
                 command_id="sing.sing",
                 description=(
-                    "按歌名 AI 翻唱。用户明确要求唱歌、唱一首、翻唱、来一首、音乐翻唱时使用；与点播原曲不同。"
+                    "按歌名 AI 翻唱。用户明确给出歌名要求唱歌、唱一首、翻唱时使用；"
+                    "禁止把「牛牛唱歌」「随机」「随便」等空命令当 song；"
+                    "用户只发「牛牛唱歌」未点歌名时不要调用本工具（由随机播放命令处理）。"
                 ),
                 parameters={
                     "type": "object",
@@ -507,25 +510,20 @@ async def handle_sing(bot: Bot, event: GroupMessageEvent, state: T_State):
 async def is_play(bot: Bot, event: Event, state: T_State) -> bool:
     plugin_config = get_sing_config()
     text = event.get_plaintext()
-    if not text or not text.endswith(SING_CMD):
-        log_rule_skip("play", event, "not endswith sing cmd", text)
+    speaker = match_bare_play_speaker(text or "", plugin_config.sing_speakers)
+    if not speaker:
+        log_rule_skip("play", event, "not bare prefix+唱歌", text)
         return False
-
-    for name, speaker in plugin_config.sing_speakers.items():
-        if not text.startswith(name):
-            continue
-        state["speaker"] = speaker
-        return True
-
-    log_rule_skip("play", event, "no speaker prefix", text)
-    return False
+    state["speaker"] = speaker
+    return True
 
 
 play_cmd = on_message(
     rule=Rule(is_play),
     permission=group_message_permission_for_command("sing.play"),
     priority=5,
-    block=False,
+    # 命中随机播放后挡住闲聊，避免 LLM 再调 sing.sing 二次投递
+    block=True,
 )
 
 

@@ -54,6 +54,20 @@ def test_sing_rule_debug_defaults_false() -> None:
     assert Config().sing_rule_debug is False
 
 
+def test_match_bare_play_speaker_only_exact_prefix_sing() -> None:
+    match = sing_config.match_bare_play_speaker
+    speakers = {"牛牛": "pallas", "帕拉斯": "pallas", "一歌": "pallas"}
+    assert match("牛牛唱歌", speakers) == "pallas"
+    assert match("帕拉斯唱歌", speakers) == "pallas"
+    assert match("一歌唱歌", speakers) == "pallas"
+    # 带歌名或重复命令不得走随机 play（否则 LLM 合成「牛牛唱歌 牛牛唱歌」会再投一次）
+    assert match("牛牛唱歌 火车", speakers) is None
+    assert match("牛牛唱歌 牛牛唱歌", speakers) is None
+    assert match("牛牛唱歌周杰伦", speakers) is None
+    assert match("唱歌", speakers) is None
+    assert match("", speakers) is None
+
+
 def test_build_sing_command_prefixes_from_speakers() -> None:
     build = sing_config.build_sing_command_prefixes
     prefixes = build({"一歌": "pallas", "牛牛": "pallas"})

@@ -137,6 +137,11 @@ def _bootstrap_stub_modules() -> None:
         sing_rule_debug=False,
     )
     sing_config.sing_server_url = lambda cfg=None: "http://127.0.0.1:9099"
+    sing_config.build_sing_command_prefixes = lambda speakers: []
+    sing_config.match_bare_play_speaker = lambda text, speakers: (
+        "pallas" if (text or "").strip() == "牛牛唱歌" else None
+    )
+    sing_config.sync_sing_ingress_command_prefixes = lambda *a, **k: None
     _install_stub("pallas_plugin_sing.config", sing_config)
 
     ncm_login = types.ModuleType("pallas_plugin_sing.ncm_login")

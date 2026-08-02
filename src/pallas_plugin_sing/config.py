@@ -49,6 +49,28 @@ def iter_sing_speaker_prefixes(speakers: dict[str, str] | None) -> list[str]:
     return out
 
 
+def match_bare_play_speaker(text: str, speakers: dict[str, str] | None) -> str | None:
+    """明文恰为「〈音色前缀〉唱歌」时返回 speaker；带歌名或重复命令返回 None。"""
+    plain = (text or "").strip()
+    if not plain:
+        return None
+    sing_suffix = "唱歌"
+    # 较长前缀优先，避免短前缀误匹配更长命令名
+    for name, speaker in sorted(
+        (speakers or {}).items(),
+        key=lambda item: len(str(item[0] or "")),
+        reverse=True,
+    ):
+        head = str(name or "").strip()
+        voice = str(speaker or "").strip()
+        if not head or not voice or not plain.startswith(head):
+            continue
+        rest = plain[len(head) :].strip()
+        if rest == sing_suffix:
+            return voice
+    return None
+
+
 def format_sing_speakers_help(speakers: dict[str, str] | None) -> str:
     """帮助文案：按音色 id 归组命令前缀，如 pallas（牛牛、帕拉斯）。"""
     by_voice: dict[str, list[str]] = {}
