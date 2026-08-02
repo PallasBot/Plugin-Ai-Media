@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+## [4.3.4] - 2026-08-02
+
+- fix(sing): 裸「〈音色〉唱歌」随机播放后挡住闲聊，避免 LLM 再派发导致连续投歌；随机 play 仅匹配整句前缀命令
+
 ## [4.3.3] - 2026-08-02
 
 - feat(sing): 音频映射变更时同步帮助 usage / menu 触发文案与可用音色；`reload_policy` 设为 metadata
