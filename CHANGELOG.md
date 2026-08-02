@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+## [4.3.3] - 2026-08-02
+
+- feat(sing): 音频映射变更时同步帮助 usage / menu 触发文案与可用音色；`reload_policy` 设为 metadata
+
 ## [4.3.2] - 2026-08-01
 
 - fix(sing): 音频映射（`sing_speakers`）变更时同步展开为 ingress `command_prefixes`，自定义前缀如「一歌唱歌」可被路由命中
