@@ -71,11 +71,8 @@ def match_bare_play_speaker(text: str, speakers: dict[str, str] | None) -> str |
     return None
 
 
-def format_sing_speakers_help(speakers: dict[str, str] | None) -> str:
-    """帮助文案：按音色归组命令前缀，仅展示触发名（不暴露音色 id）。
-
-    例：帕拉斯、牛牛；兔兔、阿米娅
-    """
+def group_sing_speaker_prefixes(speakers: dict[str, str] | None) -> list[list[str]]:
+    """按音色归组命令前缀（不暴露音色 id），组内保序去重。"""
     by_voice: dict[str, list[str]] = {}
     for prefix, voice in (speakers or {}).items():
         head = str(prefix or "").strip()
@@ -85,9 +82,27 @@ def format_sing_speakers_help(speakers: dict[str, str] | None) -> str:
         bucket = by_voice.setdefault(vid, [])
         if head not in bucket:
             bucket.append(head)
-    if not by_voice:
+    return list(by_voice.values())
+
+
+def format_sing_speakers_help(speakers: dict[str, str] | None) -> str:
+    """帮助文案（单行）：按音色归组命令前缀，仅展示触发名（不暴露音色 id）。
+
+    例：帕拉斯、牛牛；兔兔、阿米娅
+    """
+    groups = group_sing_speaker_prefixes(speakers)
+    if not groups:
         return ""
-    return "；".join("、".join(prefixes) for prefixes in by_voice.values())
+    return "；".join("、".join(prefixes) for prefixes in groups)
+
+
+def format_sing_speakers_help_list(speakers: dict[str, str] | None) -> str:
+    """帮助详情用列表：标题 + 每音色一组 · 条目（组间空行，便于帮助图/Markdown 当列表）。"""
+    groups = group_sing_speaker_prefixes(speakers)
+    if not groups:
+        return ""
+    bullets = "\n".join(f"· {'、'.join(prefixes)}" for prefixes in groups)
+    return f"可用音色：\n\n{bullets}"
 
 
 def resolve_sing_plugin_metas(meta: object | None = None) -> list[object]:
@@ -124,8 +139,7 @@ def apply_sing_speakers_to_menu_data(
     speakers: dict[str, str] | None,
 ) -> list[dict]:
     """按当前音频映射改写 trigger / detail，并附上可用音色。"""
-    speakers_help = format_sing_speakers_help(speakers)
-    voice_suffix = f"可用音色：{speakers_help}。" if speakers_help else ""
+    voice_suffix = format_sing_speakers_help_list(speakers)
     out: list[dict] = []
     for raw in menu_data:
         item = dict(raw)

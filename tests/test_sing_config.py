@@ -92,6 +92,16 @@ def test_format_sing_speakers_help_groups_by_voice() -> None:
     assert "amiya" not in text
 
 
+def test_format_sing_speakers_help_list_uses_bullets() -> None:
+    text = sing_config.format_sing_speakers_help_list(
+        {"牛牛": "pallas", "帕拉斯": "pallas", "兔兔": "amiya"},
+    )
+    assert text.startswith("可用音色：")
+    assert "· 牛牛、帕拉斯" in text
+    assert "· 兔兔" in text
+    assert "pallas" not in text
+
+
 def test_apply_sing_speakers_to_menu_data_lists_voices() -> None:
     menu = [
         {
@@ -111,13 +121,14 @@ def test_apply_sing_speakers_to_menu_data_lists_voices() -> None:
     )
     assert out[0]["trigger_condition"] == "〈音色〉唱歌 歌曲名 [key=±N]"
     assert out[1]["trigger_condition"] == "〈音色〉点歌 歌曲名"
-    assert "可用音色：牛牛、帕拉斯。" in out[0]["detail_des"]
+    assert "· 牛牛、帕拉斯" in out[0]["detail_des"]
     assert "pallas" not in out[0]["detail_des"]
     assert "\n\n可用音色：" in out[0]["detail_des"]
     # 热载不叠加
     again = sing_config.apply_sing_speakers_to_menu_data(out, {"牛牛": "pallas"})
     assert again[0]["detail_des"].count("可用音色：") == 1
-    assert "可用音色：牛牛。" in again[0]["detail_des"]
+    assert "· 牛牛" in again[0]["detail_des"]
+    assert "帕拉斯" not in again[0]["detail_des"]
 
 
 def test_sync_sing_help_menu_updates_usage_and_menu() -> None:
@@ -144,4 +155,4 @@ def test_sync_sing_help_menu_updates_usage_and_menu() -> None:
     assert "pallas" not in text
     assert "可用音色" in meta.usage
     assert meta.extra["menu_data"][0]["trigger_condition"].startswith("〈音色〉")
-    assert "可用音色：牛牛、帕拉斯。" in meta.extra["menu_data"][0]["detail_des"]
+    assert "· 牛牛、帕拉斯" in meta.extra["menu_data"][0]["detail_des"]
