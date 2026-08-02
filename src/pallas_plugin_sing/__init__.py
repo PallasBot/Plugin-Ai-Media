@@ -49,8 +49,9 @@ __plugin_meta__ = PluginMetadata(
         "help_tag": "fun",
         "version": PLUGIN_EXTRA_VERSION,
         "menu_template": PLUGIN_MENU_TEMPLATE,
+        "reload_policy": "metadata",
         "ingress_route": {"lane": "remote"},
-        # 启动后由 sync_sing_ingress_command_prefixes 按 sing_speakers 覆盖
+        # 启动后由 sync_sing_ingress_command_prefixes 按 sing_speakers 覆盖前缀与帮助音色列表
         "command_prefixes": build_sing_command_prefixes({"帕拉斯": "pallas", "牛牛": "pallas"}),
         "command_permissions": [
             {

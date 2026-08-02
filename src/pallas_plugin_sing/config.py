@@ -23,7 +23,7 @@ def build_sing_command_prefixes(speakers: dict[str, str] | None) -> list[str]:
     """由音频映射的命令名前缀展开为 ingress 路由前缀（如 一歌 → 一歌唱歌）。"""
     prefixes: list[str] = []
     seen: set[str] = set()
-    for name in (speakers or {}):
+    for name in speakers or {}:
         head = str(name or "").strip()
         if not head:
             continue
@@ -36,13 +36,39 @@ def build_sing_command_prefixes(speakers: dict[str, str] | None) -> list[str]:
     return prefixes
 
 
-def sync_sing_ingress_command_prefixes(
-    speakers: dict[str, str] | None,
-    *,
-    meta: object | None = None,
-) -> list[str]:
-    """把 sing_speakers 同步进插件 metadata.command_prefixes，并清空 ingress 路由缓存。"""
-    prefixes = build_sing_command_prefixes(speakers)
+def iter_sing_speaker_prefixes(speakers: dict[str, str] | None) -> list[str]:
+    """命令前缀列表（去空白、保序去重）。"""
+    out: list[str] = []
+    seen: set[str] = set()
+    for name in speakers or {}:
+        head = str(name or "").strip()
+        if not head or head in seen:
+            continue
+        seen.add(head)
+        out.append(head)
+    return out
+
+
+def format_sing_speakers_help(speakers: dict[str, str] | None) -> str:
+    """帮助文案：按音色 id 归组命令前缀，如 pallas（牛牛、帕拉斯）。"""
+    by_voice: dict[str, list[str]] = {}
+    for prefix, voice in (speakers or {}).items():
+        head = str(prefix or "").strip()
+        vid = str(voice or "").strip()
+        if not head or not vid:
+            continue
+        bucket = by_voice.setdefault(vid, [])
+        if head not in bucket:
+            bucket.append(head)
+    if not by_voice:
+        return ""
+    parts: list[str] = []
+    for vid, prefixes in by_voice.items():
+        parts.append(f"{vid}（{'、'.join(prefixes)}）")
+    return "、".join(parts)
+
+
+def resolve_sing_plugin_metas(meta: object | None = None) -> list[object]:
     targets: list[object] = []
     if meta is not None:
         targets.append(meta)
@@ -60,9 +86,7 @@ def sync_sing_ingress_command_prefixes(
         for plugin in get_loaded_plugins():
             module = getattr(plugin, "module", None)
             module_name = str(getattr(module, "__name__", "") or "")
-            if module_name != "pallas_plugin_sing" and not module_name.endswith(
-                ".pallas_plugin_sing"
-            ):
+            if module_name != "pallas_plugin_sing" and not module_name.endswith(".pallas_plugin_sing"):
                 continue
             loaded_meta = getattr(plugin, "metadata", None)
             if loaded_meta is not None and loaded_meta not in targets:
@@ -70,11 +94,85 @@ def sync_sing_ingress_command_prefixes(
             break
     except Exception:
         pass
+    return targets
 
-    for item in targets:
+
+def apply_sing_speakers_to_menu_data(
+    menu_data: list[dict],
+    speakers: dict[str, str] | None,
+) -> list[dict]:
+    """按当前音频映射改写 trigger / detail，并附上可用音色。"""
+    speakers_help = format_sing_speakers_help(speakers)
+    voice_suffix = f"可用音色：{speakers_help}。" if speakers_help else ""
+    out: list[dict] = []
+    for raw in menu_data:
+        item = dict(raw)
+        func = str(item.get("func") or "")
+        detail = str(item.get("detail_des") or "").strip()
+        if voice_suffix:
+            # 去掉旧的「可用音色：…」尾巴，避免热载叠加
+            if "可用音色：" in detail:
+                detail = detail.split("可用音色：", 1)[0].rstrip("；;。 \n")
+            detail = f"{detail.rstrip('；;。 ')}。{voice_suffix}" if detail else voice_suffix
+            item["detail_des"] = detail
+
+        if func == "牛牛唱歌":
+            item["trigger_condition"] = "〈音色〉唱歌 歌曲名 [key=±N]"
+        elif func == "继续唱":
+            item["trigger_condition"] = "〈音色〉继续唱 / 〈音色〉接着唱"
+        elif func == "点歌":
+            item["trigger_condition"] = "〈音色〉点歌 歌曲名"
+        elif func == "牛牛什么歌":
+            item["trigger_condition"] = "〈音色〉什么歌 / 〈音色〉哪首歌 / 〈音色〉啥歌"
+        out.append(item)
+    return out
+
+
+def sync_sing_help_menu(
+    speakers: dict[str, str] | None,
+    *,
+    meta: object | None = None,
+) -> str:
+    """把可用音色写入 plugin usage / menu_data。"""
+    speakers_help = format_sing_speakers_help(speakers)
+    for item in resolve_sing_plugin_metas(meta):
+        extra = getattr(item, "extra", None)
+        if not isinstance(extra, dict):
+            continue
+        menu = extra.get("menu_data")
+        if isinstance(menu, list):
+            extra["menu_data"] = apply_sing_speakers_to_menu_data(menu, speakers)
+        try:
+            from pallas.api.metadata import join_usage, usage_line
+
+            lines = [
+                usage_line("〈音色〉唱歌 〈歌曲名〉 [key=±N]", "AI 翻唱，可调音调"),
+                usage_line("〈音色〉继续唱 / 〈音色〉接着唱", "续唱上一首"),
+                usage_line("〈音色〉点歌 〈歌曲名〉", "播放网易云原曲"),
+                usage_line("〈音色〉什么歌 / 哪首歌 / 啥歌", "查询当前曲目"),
+            ]
+            if speakers_help:
+                lines.append(usage_line("可用音色", speakers_help))
+            item.usage = join_usage(*lines)
+        except Exception:
+            if speakers_help:
+                item.usage = f"{getattr(item, 'usage', '')}\n可用音色：{speakers_help}".strip()
+    return speakers_help
+
+
+def sync_sing_ingress_command_prefixes(
+    speakers: dict[str, str] | None,
+    *,
+    meta: object | None = None,
+) -> list[str]:
+    """把 sing_speakers 同步进插件 metadata.command_prefixes，并清空 ingress 路由缓存。"""
+    prefixes = build_sing_command_prefixes(speakers)
+    for item in resolve_sing_plugin_metas(meta):
         extra = getattr(item, "extra", None)
         if isinstance(extra, dict):
             extra["command_prefixes"] = list(prefixes)
+
+    sync_sing_help_menu(speakers, meta=meta)
 
     try:
         from pallas.core.platform.ingress.plugin_command_plaintext import (
