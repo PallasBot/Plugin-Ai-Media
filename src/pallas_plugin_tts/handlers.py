@@ -2,35 +2,18 @@
 
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING
 
-from nonebot import logger
-from pallas.api.config import TaskManager
-from pallas.core.shared.utils import HTTPXClient
 from ulid import ULID
 
-from .config import get_tts_config, tts_auth_headers, tts_server_url
+from .config import get_tts_config
+from .service import response_task_id, submit_tts_request
 from .text import extract_speak_text, is_speak_command_text
 
 if TYPE_CHECKING:
     from pallas.api.commands import PluginHandlerContext
 
-TTS_TASK_TYPE = "tts"
-
 __all__ = ["extract_speak_text", "handle_speak", "is_speak_command_text", "response_task_id"]
-
-
-def response_task_id(response) -> str:
-    try:
-        data = response.json() if response is not None else {}
-    except Exception as e:
-        logger.warning("tts response json parse failed: {}", e)
-        return ""
-    if not isinstance(data, dict):
-        return ""
-    raw = data.get("task_id")
-    return str(raw).strip() if raw is not None else ""
 
 
 async def handle_speak(ctx: PluginHandlerContext) -> None:
@@ -67,51 +50,15 @@ async def handle_speak(ctx: PluginHandlerContext) -> None:
         return
 
     request_id = str(ULID())
-    task_payload = {
-        "bot_id": str(ctx.event.self_id),
+    error = await submit_tts_request({
+        "request_id": request_id,
+        "bot_id": int(ctx.event.self_id),
         "group_id": int(ctx.group_id),
         "user_id": int(ctx.event.user_id),
-        "task_type": TTS_TASK_TYPE,
-        "start_time": time.time(),
-        "voice_only": True,
-    }
-    await TaskManager.add_task(request_id, task_payload)
-
-    endpoint = (cfg.tts_endpoint or "/v1/tts").strip() or "/v1/tts"
-    if not endpoint.startswith("/"):
-        endpoint = f"/{endpoint}"
-    url = f"{tts_server_url(cfg)}{endpoint.rstrip('/')}/{request_id}"
-    headers = tts_auth_headers(cfg)
-    logger.info(
-        "tts request dispatch request_id={} bot_id={} group_id={} chars={} url={}",
-        request_id,
-        ctx.event.self_id,
-        ctx.group_id,
-        len(text),
-        url,
-    )
-    response = await HTTPXClient.post(
-        url,
-        json={"text": text},
-        headers=headers or None,
-        timeout=float(cfg.tts_timeout_sec),
-    )
-    if not response:
-        logger.warning(
-            "tts request failed request_id={} bot_id={} group_id={} url={}",
-            request_id,
-            ctx.event.self_id,
-            ctx.group_id,
-            url,
-        )
-        await TaskManager.remove_task(request_id)
-        await ctx.finish("语音合成提交失败，稍后再试或检查媒体服务。")
-        return
-
-    remote_id = response_task_id(response)
-    if not remote_id:
-        await TaskManager.remove_task(request_id)
-        await ctx.finish("语音合成没有返回任务号，请检查媒体服务日志。")
+        "text": text,
+    })
+    if error:
+        await ctx.finish(error)
         return
 
     await ctx.finish()

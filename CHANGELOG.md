@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+- feat(tts): 「牛牛说」接入 MessageRuntime prefix direct 与 durable work job，保留既有 AI callback 发语音链路
+
+## [4.3.6] - 2026-08-03
+
+- fix(sing): 帮助详情将可用音色改为分组列表展示，长音色列表可完整折行
+
 ## [4.3.5] - 2026-08-02
 
 - fix(sing): 帮助「可用音色」只展示触发名并按同音色归组，不再暴露 speaker id

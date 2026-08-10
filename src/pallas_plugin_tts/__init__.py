@@ -19,6 +19,7 @@ from pallas.api.platform import llm_command_tool_row
 from pallas.product.llm.knowledge.declare import knowledge_source_row
 
 from . import config as _config  # noqa: F401
+from . import direct as _direct  # noqa: F401
 from .handlers import handle_speak
 
 PLUGIN_ID = "tts"

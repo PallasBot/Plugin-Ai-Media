@@ -28,6 +28,9 @@ packages = [
     "src/pallas_plugin_ai_media_runtime",
 ]
 
+[project.entry-points."pallas.work_handlers"]
+tts = "pallas_plugin_tts.work_handler:work_handlers"
+
 [tool.nonebot]
 plugin_dirs = []
 builtin_plugins = []
