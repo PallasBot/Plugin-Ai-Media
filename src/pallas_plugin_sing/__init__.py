@@ -1,5 +1,3 @@
-import time
-
 from nonebot import logger, on_message
 from nonebot.adapters import Bot, Event
 from nonebot.adapters.onebot.v11 import GroupMessageEvent
@@ -7,7 +5,7 @@ from nonebot.exception import ActionFailed, FinishedException, NetworkError
 from nonebot.plugin import PluginMetadata
 from nonebot.rule import Rule
 from nonebot.typing import T_State
-from pallas.api.config import GroupConfig, TaskManager
+from pallas.api.config import GroupConfig
 from pallas.api.limits import is_command_cooldown_ready, refresh_command_cooldown
 from pallas.api.metadata import (
     PLUGIN_EXTRA_VERSION,
@@ -20,10 +18,7 @@ from pallas.api.metadata import (
 )
 from pallas.api.perm import group_message_permission_for_command
 from pallas.api.platform import llm_command_tool_row
-from pallas.core.foundation.db.modules import SingProgress
-from pallas.core.shared.utils import HTTPXClient
 from pallas.product.llm.knowledge.declare import knowledge_source_row
-from ulid import ULID
 
 from .config import (
     build_sing_command_prefixes,
@@ -33,6 +28,16 @@ from .config import (
     sync_sing_ingress_command_prefixes,
 )
 from .ncm_login import get_song_id, get_song_title
+from .submission import (
+    PlaySubmission,
+    RequestSongSubmission,
+    SingSubmission,
+    response_status_code,
+    response_task_id,
+    submit_play,
+    submit_request_song,
+    submit_sing,
+)
 
 __plugin_meta__ = PluginMetadata(
     name="牛牛唱歌",
@@ -267,21 +272,6 @@ async def guard_command_cooldown(
     return True
 
 
-async def sync_task_id_alias(
-    local_task_id: str,
-    remote_task_id: str,
-    task_payload: dict,
-) -> None:
-    if not remote_task_id or remote_task_id == local_task_id:
-        return
-    logger.info(
-        "sing task alias ignored request_id={} remote_task_id={} task_type={}",
-        local_task_id,
-        remote_task_id,
-        task_payload.get("task_type", ""),
-    )
-
-
 def sing_debug_enabled() -> bool:
     return bool(get_sing_config().sing_rule_debug)
 
@@ -303,26 +293,6 @@ def log_rule_skip(
         (text or "").strip(),
         reason,
     )
-
-
-def response_task_id(response) -> str:
-    try:
-        data = response.json() if response is not None else {}
-    except Exception as e:
-        logger.warning("sing response json parse failed: {}", e)
-        return ""
-    if not isinstance(data, dict):
-        return ""
-    raw = data.get("task_id")
-    return str(raw).strip() if raw is not None else ""
-
-
-def response_status_code(response) -> int | None:
-    try:
-        code = getattr(response, "status_code", None)
-        return int(code) if code is not None else None
-    except Exception:
-        return None
 
 
 async def finish_on_cooldown(matcher, event: GroupMessageEvent, command_id: str) -> bool:
@@ -421,90 +391,20 @@ sing_msg = on_message(
 
 @sing_msg.handle()
 async def handle_sing(bot: Bot, event: GroupMessageEvent, state: T_State):
-    plugin_config = get_sing_config()
     if not await finish_on_cooldown(sing_msg, event, "sing.sing"):
         return
-    config = GroupConfig(event.group_id)
-    speaker = state["speaker"]
-    song_id = await get_song_id(state["song_id"])
-    if not song_id:
-        await safe_finish(
-            sing_msg,
-            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。",
+    message = await submit_sing(
+        SingSubmission(
+            bot_id=int(bot.self_id),
+            group_id=event.group_id,
+            user_id=event.user_id,
+            speaker=state["speaker"],
+            song_query=state["song_id"],
+            key=state["key"],
+            chunk_index=state["chunk_index"],
         )
-    key = state["key"]
-    chunk_index = state["chunk_index"]
-    request_id = str(ULID())
-    task_payload = {
-        "bot_id": bot.self_id,
-        "group_id": event.group_id,
-        "task_type": "sing",
-        "start_time": time.time(),
-    }
-    await TaskManager.add_task(request_id, task_payload)
-
-    url = f"{sing_server_url(plugin_config)}{plugin_config.sing_endpoint}/{request_id}"
-    logger.info(
-        "sing request dispatch mode=sing request_id={} bot_id={} group_id={} "
-        "speaker={} song_id={} chunk_index={} key={} url={}",
-        request_id,
-        bot.self_id,
-        event.group_id,
-        speaker,
-        song_id,
-        chunk_index,
-        key,
-        url,
     )
-    response = await HTTPXClient.post(
-        url,
-        json={
-            "speaker": speaker,
-            "song_id": song_id,
-            "sing_length": plugin_config.sing_length,
-            "chunk_index": chunk_index,
-            "key": key,
-        },
-    )
-    if not response:
-        logger.warning(
-            "sing request failed mode=sing request_id={} bot_id={} group_id={} url={}",
-            request_id,
-            bot.self_id,
-            event.group_id,
-            url,
-        )
-        await TaskManager.remove_task(request_id)
-        await safe_finish(
-            sing_msg,
-            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。",
-        )
-    task_id = response_task_id(response)
-    logger.info(
-        "sing request response mode=sing request_id={} task_id={} status_code={} bot_id={} group_id={}",
-        request_id,
-        task_id or "<missing>",
-        response_status_code(response),
-        bot.self_id,
-        event.group_id,
-    )
-    if not task_id:
-        await TaskManager.remove_task(request_id)
-        await safe_finish(
-            sing_msg,
-            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。",
-        )
-    await sync_task_id_alias(request_id, str(task_id), task_payload)
-
-    if chunk_index == 0:
-        await config.update_sing_progress(
-            SingProgress(
-                song_id=str(song_id),
-                chunk_index=chunk_index,
-                key=key,
-            )
-        )
-    await safe_finish(sing_msg, "欢呼吧！")
+    await safe_finish(sing_msg, message)
 
 
 async def is_play(bot: Bot, event: Event, state: T_State) -> bool:
@@ -529,61 +429,17 @@ play_cmd = on_message(
 
 @play_cmd.handle()
 async def handle_play(bot: Bot, event: GroupMessageEvent, state: T_State):
-    plugin_config = get_sing_config()
     if not await finish_on_cooldown(play_cmd, event, "sing.play"):
         return
-
-    speaker = state["speaker"]
-    request_id = str(ULID())
-    task_payload = {
-        "bot_id": bot.self_id,
-        "group_id": event.group_id,
-        "task_type": "play",
-        "start_time": time.time(),
-    }
-    await TaskManager.add_task(request_id, task_payload)
-    url = f"{sing_server_url(plugin_config)}{plugin_config.play_endpoint}/{request_id}"
-    logger.info(
-        "sing request dispatch mode=play request_id={} bot_id={} group_id={} speaker={} url={}",
-        request_id,
-        bot.self_id,
-        event.group_id,
-        speaker,
-        url,
+    message = await submit_play(
+        PlaySubmission(
+            bot_id=int(bot.self_id),
+            group_id=event.group_id,
+            user_id=event.user_id,
+            speaker=state["speaker"],
+        )
     )
-    response = await HTTPXClient.post(url, json={"speaker": speaker})
-    if not response:
-        logger.warning(
-            "sing request failed mode=play request_id={} bot_id={} group_id={} speaker={} url={}",
-            request_id,
-            bot.self_id,
-            event.group_id,
-            speaker,
-            url,
-        )
-        await TaskManager.remove_task(request_id)
-        await safe_finish(
-            play_cmd,
-            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。",
-        )
-    task_id = response_task_id(response)
-    logger.info(
-        "sing request response mode=play request_id={} task_id={} status_code={} bot_id={} group_id={} speaker={}",
-        request_id,
-        task_id or "<missing>",
-        response_status_code(response),
-        bot.self_id,
-        event.group_id,
-        speaker,
-    )
-    if not task_id:
-        await TaskManager.remove_task(request_id)
-        await safe_finish(
-            play_cmd,
-            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。",
-        )
-    await sync_task_id_alias(request_id, str(task_id), task_payload)
-    await safe_finish(play_cmd, "欢呼吧！")
+    await safe_finish(play_cmd, message)
 
 
 async def is_to_request_song(event: GroupMessageEvent, state: T_State) -> bool:
@@ -636,82 +492,18 @@ request_song_msg = on_message(
 
 @request_song_msg.handle()
 async def handle_request_song(bot: Bot, event: GroupMessageEvent, state: T_State):
-    plugin_config = get_sing_config()
     if not await finish_on_cooldown(request_song_msg, event, "sing.request_song"):
         return
-
-    song_name = state["song_name"]
-
-    song_id = await get_song_id(song_name)
-    if not song_id:
-        return False
-
-    request_id = str(ULID())
-    url = f"{sing_server_url(plugin_config)}{plugin_config.request_endpoint}/{request_id}"
-    logger.info(
-        "sing request dispatch mode=request request_id={} bot_id={} group_id={} song_name={} song_id={} url={}",
-        request_id,
-        bot.self_id,
-        event.group_id,
-        song_name,
-        song_id,
-        url,
-    )
-
-    response = await HTTPXClient.post(
-        url,
-        json={
-            "song_id": song_id,
-        },
-    )
-    task_payload = {
-        "bot_id": bot.self_id,
-        "group_id": event.group_id,
-        "task_type": "request",
-        "start_time": time.time(),
-    }
-    await TaskManager.add_task(request_id, task_payload)
-
-    if not response:
-        logger.warning(
-            "sing request failed mode=request request_id={} bot_id={} group_id={} song_id={} url={}",
-            request_id,
-            bot.self_id,
-            event.group_id,
-            song_id,
-            url,
-        )
-        await TaskManager.remove_task(request_id)
-        await safe_finish(
-            request_song_msg,
-            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。",
-        )
-    task_id = response_task_id(response)
-    logger.info(
-        "sing request response mode=request request_id={} task_id={} status_code={} bot_id={} group_id={} song_id={}",
-        request_id,
-        task_id or "<missing>",
-        response_status_code(response),
-        bot.self_id,
-        event.group_id,
-        song_id,
-    )
-    if not task_id:
-        await TaskManager.remove_task(request_id)
-        await safe_finish(
-            request_song_msg,
-            "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。",
-        )
-    await sync_task_id_alias(request_id, str(task_id), task_payload)
-
-    await GroupConfig(event.group_id).update_sing_progress(
-        SingProgress(
-            song_id=str(song_id),
-            chunk_index=0,
-            key=0,
+    message = await submit_request_song(
+        RequestSongSubmission(
+            bot_id=int(bot.self_id),
+            group_id=event.group_id,
+            user_id=event.user_id,
+            song_name=state["song_name"],
         )
     )
-    await safe_finish(request_song_msg, "欢呼吧！")
+    if message is not None:
+        await safe_finish(request_song_msg, message)
 
 
 async def what_song(event: Event) -> bool:
@@ -747,3 +539,10 @@ async def _(event: GroupMessageEvent):
 
 # 按当前音频映射展开 ingress 前缀（否则自定义前缀进不了唱歌 matcher）
 sync_sing_ingress_command_prefixes(get_sing_config().sing_speakers, meta=__plugin_meta__)
+
+# 在 matcher 与元数据初始化完成后登记 direct 路由；旧版 Bot 继续使用 matcher。
+try:
+    from . import direct as direct  # noqa: E402, F401
+except ModuleNotFoundError as exc:
+    if exc.name != "pallas.api.runtime":
+        raise

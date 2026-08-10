@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import importlib
 import sys
 import types
 from pathlib import Path
-
-import importlib
 
 import pytest
 
@@ -88,8 +87,13 @@ def _bootstrap_stub_modules() -> None:
 
     config_mod = types.ModuleType("pallas.api.config")
     config_mod.GroupConfig = object
+    config_mod.SingProgress = lambda **kwargs: types.SimpleNamespace(**kwargs)
     config_mod.TaskManager = types.SimpleNamespace(add_task=None, remove_task=None)
     _install_stub("pallas.api.config", config_mod)
+
+    api_utils_mod = types.ModuleType("pallas.api.utils")
+    api_utils_mod.HTTPXClient = types.SimpleNamespace(get=None, post=None)
+    _install_stub("pallas.api.utils", api_utils_mod)
 
     limits_mod = types.ModuleType("pallas.api.limits")
 
@@ -153,6 +157,7 @@ def _bootstrap_stub_modules() -> None:
 _bootstrap_stub_modules()
 
 sing_mod = importlib.import_module("pallas_plugin_sing")  # noqa: E402
+submission_mod = importlib.import_module("pallas_plugin_sing.submission")  # noqa: E402
 
 
 class DummyMatcher:
@@ -200,19 +205,7 @@ class DummyResponse:
         return {"task_id": self._task_id}
 
 
-@pytest.mark.asyncio
-async def test_sync_task_id_alias_keeps_request_id_registration(monkeypatch: pytest.MonkeyPatch) -> None:
-    added: list[tuple[str, dict]] = []
-    removed: list[str] = []
-
-    async def fake_add_task(task_id: str, payload: dict) -> None:
-        added.append((task_id, dict(payload)))
-
-    async def fake_remove_task(task_id: str) -> None:
-        removed.append(task_id)
-
-    monkeypatch.setattr(sing_mod.TaskManager, "add_task", fake_add_task)
-    monkeypatch.setattr(sing_mod.TaskManager, "remove_task", fake_remove_task)
+def test_remote_task_id_does_not_replace_callback_request_id() -> None:
     payload = {
         "bot_id": "123456",
         "group_id": 42,
@@ -220,10 +213,7 @@ async def test_sync_task_id_alias_keeps_request_id_registration(monkeypatch: pyt
         "start_time": 1000.0,
     }
 
-    await sing_mod.sync_task_id_alias("local-request-id", "remote-task-id", payload)
-
-    assert removed == []
-    assert added == []
+    assert submission_mod.log_ignored_remote_task_id("local-request-id", "remote-task-id", payload) is None
 
 
 @pytest.mark.asyncio
@@ -238,6 +228,7 @@ async def test_play_dispatch_uses_request_id_endpoint_and_keeps_request_id_task(
 
     class DummyEvent:
         group_id = 42
+        user_id = 7
 
     async def fake_add_task(task_id: str, payload: dict) -> None:
         added.append((task_id, dict(payload)))
@@ -253,10 +244,11 @@ async def test_play_dispatch_uses_request_id_endpoint_and_keeps_request_id_task(
         return True
 
     monkeypatch.setattr(sing_mod, "play_cmd", matcher)
-    monkeypatch.setattr(sing_mod, "GroupConfig", DummyConfig)
-    monkeypatch.setattr(sing_mod.TaskManager, "add_task", fake_add_task)
-    monkeypatch.setattr(sing_mod.TaskManager, "remove_task", fake_remove_task)
-    monkeypatch.setattr(sing_mod.HTTPXClient, "post", fake_post)
+    monkeypatch.setattr(submission_mod, "GroupConfig", DummyConfig)
+    monkeypatch.setattr(submission_mod.TaskManager, "add_task", fake_add_task)
+    monkeypatch.setattr(submission_mod.TaskManager, "remove_task", fake_remove_task)
+    monkeypatch.setattr(submission_mod.HTTPXClient, "post", fake_post)
+    monkeypatch.setattr(submission_mod, "ULID", lambda: "local-request-id")
     monkeypatch.setattr(sing_mod, "finish_on_cooldown", fake_finish_on_cooldown)
 
     with pytest.raises(sing_mod.FinishedException):
@@ -272,6 +264,7 @@ async def test_play_dispatch_uses_request_id_endpoint_and_keeps_request_id_task(
 @pytest.mark.asyncio
 async def test_request_song_updates_sing_progress(monkeypatch: pytest.MonkeyPatch) -> None:
     added: list[tuple[str, dict]] = []
+    calls: list[str] = []
     matcher = DummyMatcher()
     config = DummyConfig(42)
 
@@ -280,11 +273,14 @@ async def test_request_song_updates_sing_progress(monkeypatch: pytest.MonkeyPatc
 
     class DummyEvent:
         group_id = 42
+        user_id = 7
 
     async def fake_add_task(task_id: str, payload: dict) -> None:
+        calls.append("register")
         added.append((task_id, dict(payload)))
 
     async def fake_post(url: str, json: dict | None = None):
+        calls.append("post")
         assert url.endswith("/api/request/local-request-id")
         assert json == {"song_id": 1474697449}
         return DummyResponse("remote-request-task-id")
@@ -297,16 +293,18 @@ async def test_request_song_updates_sing_progress(monkeypatch: pytest.MonkeyPatc
         return 1474697449
 
     monkeypatch.setattr(sing_mod, "request_song_msg", matcher)
-    monkeypatch.setattr(sing_mod, "GroupConfig", lambda group_id: config)
-    monkeypatch.setattr(sing_mod.TaskManager, "add_task", fake_add_task)
-    monkeypatch.setattr(sing_mod.HTTPXClient, "post", fake_post)
+    monkeypatch.setattr(submission_mod, "GroupConfig", lambda group_id: config)
+    monkeypatch.setattr(submission_mod.TaskManager, "add_task", fake_add_task)
+    monkeypatch.setattr(submission_mod.HTTPXClient, "post", fake_post)
     monkeypatch.setattr(sing_mod, "finish_on_cooldown", fake_finish_on_cooldown)
-    monkeypatch.setattr(sing_mod, "get_song_id", fake_get_song_id)
+    monkeypatch.setattr(submission_mod, "get_song_id", fake_get_song_id)
+    monkeypatch.setattr(submission_mod, "ULID", lambda: "local-request-id")
 
     with pytest.raises(sing_mod.FinishedException):
         await sing_mod.handle_request_song(DummyBot(), DummyEvent(), {"song_name": "随机"})
 
     assert [task_id for task_id, _ in added] == ["local-request-id"]
+    assert calls == ["register", "post"]
     assert added[0][1]["task_type"] == "request"
     assert config.updated_progress is not None
     assert config.updated_progress.song_id == "1474697449"

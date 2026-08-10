@@ -6,6 +6,7 @@
 ## [Unreleased]
 
 - feat(tts): 「牛牛说」接入 MessageRuntime prefix direct 与 durable work job，保留既有 AI callback 发语音链路
+- feat(sing): 接入 MessageRuntime direct 路径，并统一唱歌、随机播放与点歌的异步提交生命周期
 
 ## [4.3.6] - 2026-08-03
 
