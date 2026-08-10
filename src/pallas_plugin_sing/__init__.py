@@ -20,13 +20,8 @@ from pallas.api.perm import group_message_permission_for_command
 from pallas.api.platform import llm_command_tool_row
 from pallas.product.llm.knowledge.declare import knowledge_source_row
 
-from .config import (
-    build_sing_command_prefixes,
-    get_sing_config,
-    match_bare_play_speaker,
-    sing_server_url,
-    sync_sing_ingress_command_prefixes,
-)
+from .commands import matches_song_title, parse_play_request, parse_sing_request, parse_song_request
+from .config import build_sing_command_prefixes, get_sing_config, sing_server_url, sync_sing_ingress_command_prefixes
 from .ncm_login import get_song_id, get_song_title
 from .submission import (
     PlaySubmission,
@@ -241,11 +236,6 @@ __plugin_meta__ = PluginMetadata(
     },
 )
 
-SING_CMD = "唱歌"
-REQUEST_SONG_CMD = "点歌"
-SING_CONTINUE_CMDS = {"继续唱", "接着唱"}
-WHAT_SONG_CMDS = {"什么歌", "哪首歌", "啥歌"}
-
 
 async def safe_finish(matcher, message: str | None = None) -> None:
     """发送收尾文案；协议拒发时降级为 warning，仍正常结束 matcher。"""
@@ -309,53 +299,20 @@ async def is_to_sing(event: GroupMessageEvent, state: T_State) -> bool:
         log_rule_skip("sing", event, "empty text")
         return False
 
-    if SING_CMD not in text and not any(cmd in text for cmd in SING_CONTINUE_CMDS):
-        log_rule_skip("sing", event, "no sing keyword", text)
+    outcome = parse_sing_request(text, plugin_config.sing_speakers)
+    command = outcome.value
+    if command is None:
+        log_rule_skip("sing", event, outcome.rejection or "unmatched command", text)
         return False
+    state["speaker"] = command.speaker
+    state["key"] = command.key
 
-    if text.endswith(SING_CMD):
-        log_rule_skip("sing", event, "endswith sing cmd -> play path", text)
-        return False
-
-    has_spk = False
-    for name, speaker in plugin_config.sing_speakers.items():
-        if not text.startswith(name):
-            continue
-        text = text.replace(name, "").strip()
-        has_spk = True
-        state["speaker"] = speaker
-        break
-
-    if not has_spk:
-        log_rule_skip("sing", event, "no speaker prefix", text)
-        return False
-
-    if "key=" in text:
-        key_pos = text.find("key=")
-        key_val = text[key_pos + 4 :].strip()  # 获取key=后面的值
-        text = text.replace("key=" + key_val, "")  # 去掉消息中的key信息
-        try:
-            key_int = int(key_val)  # 判断输入的key是不是整数
-            if key_int < -12 or key_int > 12:
-                log_rule_skip("sing", event, f"key out of range: {key_int}", text)
-                return False  # 限制一下key的大小，一个八度应该够了
-        except ValueError:
-            log_rule_skip("sing", event, f"invalid key: {key_val}", text)
-            return False
-    else:
-        key_val = 0
-    state["key"] = key_val
-
-    if text.startswith(SING_CMD):
-        song_key = text.replace(SING_CMD, "").strip()
-        if not song_key:
-            log_rule_skip("sing", event, "empty song key after sing cmd", text)
-            return False
-        state["song_id"] = song_key
-        state["chunk_index"] = 0
+    if command.kind == "sing":
+        state["song_id"] = command.song_query
+        state["chunk_index"] = command.chunk_index
         return True
 
-    if text in SING_CONTINUE_CMDS:
+    if command.kind == "continue":
         progress = await GroupConfig(group_id=event.group_id).sing_progress()
         logger.info(f"bot [{event.self_id}] sing continue read progress in group [{event.group_id}]: {progress}")
         if not progress:
@@ -410,11 +367,11 @@ async def handle_sing(bot: Bot, event: GroupMessageEvent, state: T_State):
 async def is_play(bot: Bot, event: Event, state: T_State) -> bool:
     plugin_config = get_sing_config()
     text = event.get_plaintext()
-    speaker = match_bare_play_speaker(text or "", plugin_config.sing_speakers)
-    if not speaker:
+    command = parse_play_request(text or "", plugin_config.sing_speakers)
+    if command is None:
         log_rule_skip("play", event, "not bare prefix+唱歌", text)
         return False
-    state["speaker"] = speaker
+    state["speaker"] = command.speaker
     return True
 
 
@@ -452,34 +409,14 @@ async def is_to_request_song(event: GroupMessageEvent, state: T_State) -> bool:
         log_rule_skip("request", event, "empty text")
         return False
 
-    if REQUEST_SONG_CMD not in text:
-        log_rule_skip("request", event, "no request keyword", text)
+    outcome = parse_song_request(text, plugin_config.sing_speakers)
+    command = outcome.value
+    if command is None:
+        log_rule_skip("request", event, outcome.rejection or "request pattern not matched", text)
         return False
-
-    if not text.endswith(REQUEST_SONG_CMD):
-        has_spk = False
-        for name, speaker in plugin_config.sing_speakers.items():
-            if not text.startswith(name):
-                continue
-            text = text.replace(name, "").strip()
-            has_spk = True
-            state["speaker"] = speaker
-            break
-
-        if not has_spk:
-            log_rule_skip("request", event, "no speaker prefix", text)
-            return False
-
-        if text.startswith(REQUEST_SONG_CMD):
-            song_name = text.replace(REQUEST_SONG_CMD, "").strip()
-            if not song_name:
-                log_rule_skip("request", event, "empty song name", text)
-                return False
-            state["song_name"] = song_name
-            return True
-
-    log_rule_skip("request", event, "request pattern not matched", text)
-    return False
+    state["speaker"] = command.speaker
+    state["song_name"] = command.song_name
+    return True
 
 
 request_song_msg = on_message(
@@ -508,8 +445,7 @@ async def handle_request_song(bot: Bot, event: GroupMessageEvent, state: T_State
 
 async def what_song(event: Event) -> bool:
     text = event.get_plaintext()
-    speakers = get_sing_config().sing_speakers.keys()
-    return any(text.startswith(spk) for spk in speakers) and any(key in text for key in WHAT_SONG_CMDS)
+    return matches_song_title(text, get_sing_config().sing_speakers)
 
 
 song_title_cmd = on_message(
