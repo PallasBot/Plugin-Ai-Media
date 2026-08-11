@@ -1,3 +1,4 @@
+from nonebot import get_driver, logger
 from nonebot.plugin import PluginMetadata
 from pallas.api.commands import (
     bind_alias_handlers,
@@ -7,6 +8,7 @@ from pallas.api.commands import (
     command_perm_row,
     message_command,
 )
+from pallas.api.logging import format_plugin_event
 from pallas.api.metadata import (
     PLUGIN_EXTRA_VERSION,
     PLUGIN_HOMEPAGE,
@@ -22,6 +24,12 @@ from . import config as _config  # noqa: F401
 from . import direct as _direct  # noqa: F401
 from . import media_callback as _tts_media_callback  # noqa: F401
 from .handlers import handle_speak
+
+
+@get_driver().on_startup
+async def _tts_ready() -> None:
+    logger.info(format_plugin_event("ready", "Registered tts command and media task hooks"))
+
 
 PLUGIN_ID = "tts"
 

@@ -24,6 +24,14 @@ def response_task_id(response) -> str:
     return str(raw).strip() if raw is not None else ""
 
 
+def response_status_code(response) -> int | None:
+    try:
+        code = getattr(response, "status_code", None)
+        return int(code) if code is not None else None
+    except Exception:
+        return None
+
+
 async def submit_tts_request(payload: dict) -> str | None:
     request_id = str(payload.get("request_id") or "").strip()
     bot_id = int(payload["bot_id"])
@@ -50,12 +58,10 @@ async def submit_tts_request(payload: dict) -> str | None:
     url = f"{tts_server_url(cfg)}{endpoint.rstrip('/')}/{request_id}"
     headers = tts_auth_headers(cfg)
     logger.info(
-        "tts request dispatch request_id={} bot_id={} group_id={} chars={} url={}",
-        request_id,
-        bot_id,
-        group_id,
-        len(text),
-        url,
+        format_plugin_event(
+            "tts",
+            f"Bot [{bot_id}] dispatched a tts request [id={request_id}] in group [{group_id}], chars [{len(text)}]",
+        )
     )
     response = await HTTPXClient.post(
         url,
@@ -73,9 +79,18 @@ async def submit_tts_request(payload: dict) -> str | None:
         )
         await TaskManager.remove_task(request_id)
         return "语音合成提交失败，稍后再试或检查媒体服务。"
-    if not response_task_id(response):
+    remote_task_id = response_task_id(response)
+    if not remote_task_id:
         await TaskManager.remove_task(request_id)
         return "语音合成没有返回任务号，请检查媒体服务日志。"
+    task_part = f", task [id={remote_task_id}]" if remote_task_id != request_id else ""
+    logger.info(
+        format_plugin_event(
+            "tts",
+            f"Bot [{bot_id}]'s tts request [id={request_id}] was accepted{task_part}, "
+            f"status [{response_status_code(response) or '-'}]",
+        )
+    )
     logger.info(
         format_plugin_event(
             "tts",

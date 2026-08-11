@@ -25,6 +25,7 @@ def _bootstrap_stub_modules() -> None:
         warning=lambda *a, **k: None,
         debug=lambda *a, **k: None,
     )
+    nonebot.get_driver = lambda: types.SimpleNamespace(on_startup=lambda fn: fn)
     nonebot.on_message = lambda *a, **k: types.SimpleNamespace(
         handle=lambda: (lambda fn: fn), finish=None, send=None
     )
@@ -117,6 +118,8 @@ def _bootstrap_stub_modules() -> None:
 
     platform_mod = types.ModuleType("pallas.api.platform")
     platform_mod.llm_command_tool_row = lambda **kwargs: kwargs
+    platform_mod.SING_TASK_TYPES = frozenset({"sing", "play", "request"})
+    platform_mod.register_media_task_hooks = lambda *a, **k: None
     _install_stub("pallas.api.platform", platform_mod)
 
     db_mod = types.ModuleType("pallas.core.foundation.db.modules")

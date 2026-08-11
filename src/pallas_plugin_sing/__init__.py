@@ -1,4 +1,4 @@
-from nonebot import logger, on_message
+from nonebot import get_driver, logger, on_message
 from nonebot.adapters import Bot, Event
 from nonebot.adapters.onebot.v11 import GroupMessageEvent
 from nonebot.exception import ActionFailed, FinishedException, NetworkError
@@ -7,6 +7,7 @@ from nonebot.rule import Rule
 from nonebot.typing import T_State
 from pallas.api.config import GroupConfig
 from pallas.api.limits import is_command_cooldown_ready, refresh_command_cooldown
+from pallas.api.logging import format_plugin_event
 from pallas.api.metadata import (
     PLUGIN_EXTRA_VERSION,
     PLUGIN_HOMEPAGE,
@@ -485,3 +486,8 @@ except ModuleNotFoundError as exc:
 
 # 登记 AI callback 投递收尾（需 Bot 侧 runner 调用 invoke_media_task_success）。
 from . import media_callback as _sing_media_callback  # noqa: E402, F401
+
+
+@get_driver().on_startup
+async def _sing_ready() -> None:
+    logger.info(format_plugin_event("ready", "Registered sing command and media task hooks"))

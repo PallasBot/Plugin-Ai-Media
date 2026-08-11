@@ -47,10 +47,11 @@ def log_ignored_remote_task_id(local_task_id: str, remote_task_id: str, task_pay
     if not remote_task_id or remote_task_id == local_task_id:
         return
     logger.info(
-        "sing task alias ignored request_id={} remote_task_id={} task_type={}",
-        local_task_id,
-        remote_task_id,
-        task_payload.get("task_type", ""),
+        format_plugin_event(
+            "task_alias",
+            f"Task alias ignored, request [id={local_task_id}] differs from remote task [id={remote_task_id}], "
+            f"task_type [{task_payload.get('task_type', '') or '-'}]",
+        )
     )
 
 
@@ -120,16 +121,11 @@ async def submit_sing(request: SingSubmission) -> str:
     payload["song_id"] = song_id
     url = f"{sing_server_url(plugin_config)}{plugin_config.sing_endpoint}/{request_id}"
     logger.info(
-        "sing request dispatch mode=sing request_id={} bot_id={} group_id={} "
-        "speaker={} song_id={} chunk_index={} key={} url={}",
-        request_id,
-        request.bot_id,
-        request.group_id,
-        request.speaker,
-        song_id,
-        request.chunk_index,
-        request.key,
-        url,
+        format_plugin_event(
+            "sing",
+            f"Bot [{request.bot_id}] dispatched a sing request [id={request_id}] "
+            f"in group [{request.group_id}] by speaker [{request.speaker}]",
+        )
     )
     response, remote_task_id = await submit_registered_task(
         request_id=request_id,
@@ -143,16 +139,16 @@ async def submit_sing(request: SingSubmission) -> str:
             "key": request.key,
         },
     )
-    logger.info(
-        "sing request response mode=sing request_id={} task_id={} status_code={} bot_id={} group_id={}",
-        request_id,
-        remote_task_id or "<missing>",
-        response_status_code(response),
-        request.bot_id,
-        request.group_id,
-    )
     if not remote_task_id:
         return FAILED_REPLY
+    task_part = f", task [id={remote_task_id}]" if remote_task_id != request_id else ""
+    logger.info(
+        format_plugin_event(
+            "sing",
+            f"Bot [{request.bot_id}]'s sing request [id={request_id}] was accepted{task_part}, "
+            f"status [{response_status_code(response) or '-'}]",
+        )
+    )
     if request.chunk_index == 0:
         await GroupConfig(request.group_id).update_sing_progress(
             SingProgress(song_id=str(song_id), chunk_index=0, key=request.key)
@@ -178,12 +174,11 @@ async def submit_play(request: PlaySubmission) -> str:
     )
     url = f"{sing_server_url(plugin_config)}{plugin_config.play_endpoint}/{request_id}"
     logger.info(
-        "sing request dispatch mode=play request_id={} bot_id={} group_id={} speaker={} url={}",
-        request_id,
-        request.bot_id,
-        request.group_id,
-        request.speaker,
-        url,
+        format_plugin_event(
+            "play",
+            f"Bot [{request.bot_id}] dispatched a play request [id={request_id}] "
+            f"in group [{request.group_id}] by speaker [{request.speaker}]",
+        )
     )
     response, remote_task_id = await submit_registered_task(
         request_id=request_id,
@@ -191,17 +186,16 @@ async def submit_play(request: PlaySubmission) -> str:
         url=url,
         body={"speaker": request.speaker},
     )
-    logger.info(
-        "sing request response mode=play request_id={} task_id={} status_code={} bot_id={} group_id={} speaker={}",
-        request_id,
-        remote_task_id or "<missing>",
-        response_status_code(response),
-        request.bot_id,
-        request.group_id,
-        request.speaker,
-    )
     if not remote_task_id:
         return FAILED_REPLY
+    task_part = f", task [id={remote_task_id}]" if remote_task_id != request_id else ""
+    logger.info(
+        format_plugin_event(
+            "play",
+            f"Bot [{request.bot_id}]'s play request [id={request_id}] was accepted{task_part}, "
+            f"status [{response_status_code(response) or '-'}]",
+        )
+    )
     logger.info(
         format_plugin_event(
             "sing",
@@ -227,13 +221,11 @@ async def submit_request_song(request: RequestSongSubmission) -> str | None:
     payload["song_id"] = song_id
     url = f"{sing_server_url(plugin_config)}{plugin_config.request_endpoint}/{request_id}"
     logger.info(
-        "sing request dispatch mode=request request_id={} bot_id={} group_id={} song_name={} song_id={} url={}",
-        request_id,
-        request.bot_id,
-        request.group_id,
-        request.song_name,
-        song_id,
-        url,
+        format_plugin_event(
+            "request",
+            f"Bot [{request.bot_id}] dispatched a song request [id={request_id}] "
+            f"in group [{request.group_id}], song [id={song_id},name={request.song_name}]",
+        )
     )
     response, remote_task_id = await submit_registered_task(
         request_id=request_id,
@@ -241,17 +233,16 @@ async def submit_request_song(request: RequestSongSubmission) -> str | None:
         url=url,
         body={"song_id": song_id},
     )
-    logger.info(
-        "sing request response mode=request request_id={} task_id={} status_code={} bot_id={} group_id={} song_id={}",
-        request_id,
-        remote_task_id or "<missing>",
-        response_status_code(response),
-        request.bot_id,
-        request.group_id,
-        song_id,
-    )
     if not remote_task_id:
         return FAILED_REPLY
+    task_part = f", task [id={remote_task_id}]" if remote_task_id != request_id else ""
+    logger.info(
+        format_plugin_event(
+            "request",
+            f"Bot [{request.bot_id}]'s song request [id={request_id}] was accepted{task_part}, "
+            f"status [{response_status_code(response) or '-'}]",
+        )
+    )
     await GroupConfig(request.group_id).update_sing_progress(SingProgress(song_id=str(song_id), chunk_index=0, key=0))
     logger.info(
         format_plugin_event(
