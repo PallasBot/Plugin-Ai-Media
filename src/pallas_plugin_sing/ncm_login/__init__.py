@@ -8,6 +8,7 @@ from nonebot.exception import FinishedException
 from nonebot.log import logger
 from nonebot.params import ArgStr
 from nonebot.typing import T_State
+from pallas.api.logging import format_plugin_event
 from pallas.api.perm import permission_for_command
 from pallas.core.shared.utils import HTTPXClient
 from pydantic import BaseModel
@@ -100,6 +101,7 @@ async def got_captcha(event: MessageEvent, state: T_State, captcha: str = ArgStr
         )
 
         if response and response.json().get("success"):
+            logger.info(format_plugin_event("ncm_login", f"Bot [{event.self_id}] logged into NetEase Cloud Music"))
             await ncm_login_cmd.send("登录成功！")
         else:
             await ncm_login_cmd.finish("登录失败，请检查验证码是否正确。")
@@ -117,6 +119,7 @@ async def handle_logout(event: MessageEvent):
         url = f"{sing_server_url()}{ncm_cfg.ncm_logout_endpoint}"
         response = await HTTPXClient.post(url)
         if response and response.json().get("success"):
+            logger.info(format_plugin_event("ncm_logout", f"Bot [{event.self_id}] logged out of NetEase Cloud Music"))
             await ncm_logout_cmd.finish("已成功退出网易云音乐账号。")
         else:
             await ncm_logout_cmd.finish("登出失败，请稍后重试。")

@@ -75,6 +75,10 @@ def _bootstrap_stub_modules() -> None:
     _install_stub("pallas", types.ModuleType("pallas"))
     _install_stub("pallas.api", types.ModuleType("pallas.api"))
 
+    api_logging_mod = types.ModuleType("pallas.api.logging")
+    api_logging_mod.format_plugin_event = lambda *args, **kwargs: " ".join(str(arg) for arg in args)
+    _install_stub("pallas.api.logging", api_logging_mod)
+
     cmd_defaults = types.ModuleType("pallas.api.metadata")
     cmd_defaults.PLUGIN_EXTRA_VERSION = "4.0.1"
     cmd_defaults.PLUGIN_HOMEPAGE = "https://example.com"

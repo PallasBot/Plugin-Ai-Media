@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from nonebot import logger
 from pallas.api.config import GroupConfig, SingProgress, TaskManager
+from pallas.api.logging import format_plugin_event
 from pallas.api.utils import HTTPXClient
 from ulid import ULID
 
@@ -155,6 +156,13 @@ async def submit_sing(request: SingSubmission) -> str:
         await GroupConfig(request.group_id).update_sing_progress(
             SingProgress(song_id=str(song_id), chunk_index=0, key=request.key)
         )
+    logger.info(
+        format_plugin_event(
+            "sing",
+            f"Bot [{request.bot_id}] queued a song for user [{request.user_id}] "
+            f"in group [{request.group_id}] (song_id={song_id}, speaker={request.speaker})",
+        )
+    )
     return ACCEPTED_REPLY
 
 
@@ -193,6 +201,13 @@ async def submit_play(request: PlaySubmission) -> str:
     )
     if not remote_task_id:
         return FAILED_REPLY
+    logger.info(
+        format_plugin_event(
+            "sing",
+            f"Bot [{request.bot_id}] queued a random song for user [{request.user_id}] "
+            f"in group [{request.group_id}] (speaker={request.speaker})",
+        )
+    )
     return ACCEPTED_REPLY
 
 
@@ -236,4 +251,11 @@ async def submit_request_song(request: RequestSongSubmission) -> str | None:
     if not remote_task_id:
         return FAILED_REPLY
     await GroupConfig(request.group_id).update_sing_progress(SingProgress(song_id=str(song_id), chunk_index=0, key=0))
+    logger.info(
+        format_plugin_event(
+            "sing",
+            f"Bot [{request.bot_id}] queued a song request for user [{request.user_id}] "
+            f"in group [{request.group_id}] (song_id={song_id})",
+        )
+    )
     return ACCEPTED_REPLY

@@ -4,6 +4,7 @@ import time
 
 from nonebot import logger
 from pallas.api.config import TaskManager
+from pallas.api.logging import format_plugin_event
 from pallas.core.shared.utils import HTTPXClient
 
 from .config import get_tts_config, tts_auth_headers, tts_server_url
@@ -75,4 +76,10 @@ async def submit_tts_request(payload: dict) -> str | None:
     if not response_task_id(response):
         await TaskManager.remove_task(request_id)
         return "语音合成没有返回任务号，请检查媒体服务日志。"
+    logger.info(
+        format_plugin_event(
+            "tts",
+            f"Bot [{bot_id}] queued speech synthesis for user [{user_id}] in group [{group_id}] (chars={len(text)})",
+        )
+    )
     return None

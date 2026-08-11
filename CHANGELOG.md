@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+- feat(logging): 补充唱歌 / 语音合成受理与网易云绑定业务事件日志
+
 ## [4.3.7] - 2026-08-10
 
 - feat(tts): 「牛牛说」接入 MessageRuntime prefix direct 与 durable work job，保留既有 AI callback 发语音链路
