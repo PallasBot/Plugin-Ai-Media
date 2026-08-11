@@ -117,6 +117,7 @@ async def submit_sing(request: SingSubmission) -> str:
         user_id=request.user_id,
         task_type="sing",
     )
+    payload["song_id"] = song_id
     url = f"{sing_server_url(plugin_config)}{plugin_config.sing_endpoint}/{request_id}"
     logger.info(
         "sing request dispatch mode=sing request_id={} bot_id={} group_id={} "
@@ -159,8 +160,8 @@ async def submit_sing(request: SingSubmission) -> str:
     logger.info(
         format_plugin_event(
             "sing",
-            f"Bot [{request.bot_id}] queued a song for user [{request.user_id}] "
-            f"in group [{request.group_id}] (song_id={song_id}, speaker={request.speaker})",
+            f"Bot [{request.bot_id}] queued a song [id={song_id}] for user [{request.user_id}] "
+            f"in group [{request.group_id}] by speaker [{request.speaker}]",
         )
     )
     return ACCEPTED_REPLY
@@ -205,7 +206,7 @@ async def submit_play(request: PlaySubmission) -> str:
         format_plugin_event(
             "sing",
             f"Bot [{request.bot_id}] queued a random song for user [{request.user_id}] "
-            f"in group [{request.group_id}] (speaker={request.speaker})",
+            f"in group [{request.group_id}] by speaker [{request.speaker}]",
         )
     )
     return ACCEPTED_REPLY
@@ -223,6 +224,7 @@ async def submit_request_song(request: RequestSongSubmission) -> str | None:
         user_id=request.user_id,
         task_type="request",
     )
+    payload["song_id"] = song_id
     url = f"{sing_server_url(plugin_config)}{plugin_config.request_endpoint}/{request_id}"
     logger.info(
         "sing request dispatch mode=request request_id={} bot_id={} group_id={} song_name={} song_id={} url={}",
@@ -254,8 +256,8 @@ async def submit_request_song(request: RequestSongSubmission) -> str | None:
     logger.info(
         format_plugin_event(
             "sing",
-            f"Bot [{request.bot_id}] queued a song request for user [{request.user_id}] "
-            f"in group [{request.group_id}] (song_id={song_id})",
+            f"Bot [{request.bot_id}] queued a song request [id={song_id}] for user [{request.user_id}] "
+            f"in group [{request.group_id}]",
         )
     )
     return ACCEPTED_REPLY

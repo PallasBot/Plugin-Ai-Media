@@ -79,7 +79,7 @@ async def submit_tts_request(payload: dict) -> str | None:
     logger.info(
         format_plugin_event(
             "tts",
-            f"Bot [{bot_id}] queued speech synthesis for user [{user_id}] in group [{group_id}] (chars={len(text)})",
+            f"Bot [{bot_id}] queued speech synthesis [chars={len(text)}] for user [{user_id}] in group [{group_id}]",
         )
     )
     return None

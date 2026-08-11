@@ -8,12 +8,22 @@ from nonebot import logger
 from pallas.api.logging import format_plugin_event
 from pallas.api.platform import SING_TASK_TYPES, register_media_task_hooks
 
+_TASK_TYPE_EVENTS = {
+    "sing": ("sing_callback", "delivered a song"),
+    "play": ("play_callback", "played a song"),
+    "request": ("request_callback", "delivered a song request"),
+}
+
 
 def on_sing_task_success(task: dict[str, Any], _audio_bytes: bytes, group_id: int) -> None:
+    task_type = str(task.get("task_type") or "").strip()
+    operation, verb = _TASK_TYPE_EVENTS.get(task_type, ("sing_callback", "delivered a song"))
+    song_id = task.get("song_id")
+    id_part = f" [id={song_id}]" if song_id else ""
     logger.info(
         format_plugin_event(
-            "sing",
-            f"Bot [{task.get('bot_id') or '-'}] delivered a song for user [{task.get('user_id') or '-'}] "
+            operation,
+            f"Bot [{task.get('bot_id') or '-'}] {verb}{id_part} for user [{task.get('user_id') or '-'}] "
             f"in group [{group_id}]",
         )
     )

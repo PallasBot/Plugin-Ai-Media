@@ -12,7 +12,7 @@ from pallas.api.platform import TTS_TASK_TYPE, register_media_task_hooks
 def on_tts_task_success(task: dict[str, Any], _audio_bytes: bytes, group_id: int) -> None:
     logger.info(
         format_plugin_event(
-            "tts",
+            "tts_callback",
             f"Bot [{task.get('bot_id') or '-'}] delivered speech synthesis for user [{task.get('user_id') or '-'}] "
             f"in group [{group_id}]",
         )
