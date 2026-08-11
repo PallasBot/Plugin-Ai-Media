@@ -482,3 +482,6 @@ try:
 except ModuleNotFoundError as exc:
     if exc.name != "pallas.api.runtime":
         raise
+
+# 登记 AI callback 投递收尾（需 Bot 侧 runner 调用 invoke_media_task_success）。
+from . import media_callback as _sing_media_callback  # noqa: E402, F401

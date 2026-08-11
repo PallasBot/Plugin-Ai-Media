@@ -20,6 +20,7 @@ from pallas.product.llm.knowledge.declare import knowledge_source_row
 
 from . import config as _config  # noqa: F401
 from . import direct as _direct  # noqa: F401
+from . import media_callback as _tts_media_callback  # noqa: F401
 from .handlers import handle_speak
 
 PLUGIN_ID = "tts"
