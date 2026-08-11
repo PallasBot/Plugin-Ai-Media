@@ -3,7 +3,7 @@
 本文件依据 git tag 历史整理，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 新提交合入后请在 `## [Unreleased]` 下记录，发布时随版本 tag 归档。
 
-## [Unreleased]
+## [4.3.9] - 2026-08-11
 
 - feat(logging): 补充唱歌与语音合成投递完成事件
 
