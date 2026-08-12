@@ -25,6 +25,7 @@ class SingSubmission:
     song_query: str
     key: int | str = 0
     chunk_index: int = 0
+    request_id: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +42,7 @@ class RequestSongSubmission:
     group_id: int
     user_id: int
     song_name: str
+    request_id: str = ""
 
 
 def log_ignored_remote_task_id(local_task_id: str, remote_task_id: str, task_payload: dict) -> None:
@@ -111,7 +113,7 @@ async def submit_sing(request: SingSubmission) -> str:
     song_id = await get_song_id(request.song_query)
     if not song_id:
         return FAILED_REPLY
-    request_id = str(ULID())
+    request_id = request.request_id or str(ULID())
     payload = task_payload(
         bot_id=request.bot_id,
         group_id=request.group_id,

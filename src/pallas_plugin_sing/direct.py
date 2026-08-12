@@ -5,14 +5,15 @@ from pallas.api.limits import is_command_cooldown_ready, refresh_command_cooldow
 from pallas.api.runtime import (
     DirectCommandContext,
     DirectCommandResult,
+    DirectWorkJob,
     completion_effect,
     matcher_fallback,
     register_prefix_command_handler,
 )
+from ulid import ULID
 
 from .commands import parse_sing_request, parse_song_request
 from .config import get_sing_config
-from .submission import RequestSongSubmission, SingSubmission, submit_request_song, submit_sing
 
 
 def command_prefixes(suffixes: tuple[str, ...]) -> tuple[str, ...]:
@@ -49,22 +50,29 @@ async def sing(context: DirectCommandContext) -> DirectCommandResult:
         key = command.key
     if not await is_command_cooldown_ready(context.event, "sing.sing"):
         return matcher_fallback("cooldown")
-    request = SingSubmission(
-        bot_id=context.bot_id,
-        group_id=context.group_id,
-        user_id=int(context.event.user_id),
-        speaker=command.speaker,
-        song_query=song_query,
-        key=key,
-        chunk_index=chunk_index,
+    request_id = str(ULID())
+    job = DirectWorkJob(
+        kind="sing.submit",
+        payload={
+            "request_id": request_id,
+            "bot_id": context.bot_id,
+            "group_id": context.group_id,
+            "user_id": int(context.event.user_id),
+            "speaker": command.speaker,
+            "song_query": song_query,
+            "key": key,
+            "chunk_index": chunk_index,
+        },
+        idempotency_key=f"sing:{context.bot_id}:{context.group_id}:{context.message_id}",
     )
 
-    async def run() -> None:
+    async def refresh_cooldown() -> None:
         await refresh_command_cooldown(context.event, "sing.sing")
-        message = await submit_sing(request)
-        await context.bot.send(context.event, message)
 
-    return DirectCommandResult(effects=(completion_effect("sing.submit", run),))
+    return DirectCommandResult(
+        work_jobs=(job,),
+        effects=(completion_effect("sing.sing.cooldown", refresh_cooldown),),
+    )
 
 
 async def request_song(context: DirectCommandContext) -> DirectCommandResult:
@@ -77,20 +85,26 @@ async def request_song(context: DirectCommandContext) -> DirectCommandResult:
         return matcher_fallback("invalid_command")
     if not await is_command_cooldown_ready(context.event, "sing.request_song"):
         return matcher_fallback("cooldown")
-    request = RequestSongSubmission(
-        bot_id=context.bot_id,
-        group_id=context.group_id,
-        user_id=int(context.event.user_id),
-        song_name=command.song_name,
+    request_id = str(ULID())
+    job = DirectWorkJob(
+        kind="sing.request_song",
+        payload={
+            "request_id": request_id,
+            "bot_id": context.bot_id,
+            "group_id": context.group_id,
+            "user_id": int(context.event.user_id),
+            "song_name": command.song_name,
+        },
+        idempotency_key=f"sing.request_song:{context.bot_id}:{context.group_id}:{context.message_id}",
     )
 
-    async def run() -> None:
+    async def refresh_cooldown() -> None:
         await refresh_command_cooldown(context.event, "sing.request_song")
-        message = await submit_request_song(request)
-        if message is not None:
-            await context.bot.send(context.event, message)
 
-    return DirectCommandResult(effects=(completion_effect("sing.request_song", run),))
+    return DirectCommandResult(
+        work_jobs=(job,),
+        effects=(completion_effect("sing.request_song.cooldown", refresh_cooldown),),
+    )
 
 
 SING_DECLARATION = register_prefix_command_handler(

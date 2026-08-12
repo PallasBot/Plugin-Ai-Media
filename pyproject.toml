@@ -29,6 +29,7 @@ packages = [
 ]
 
 [project.entry-points."pallas.work_handlers"]
+sing = "pallas_plugin_sing.work_handler:work_handlers"
 tts = "pallas_plugin_tts.work_handler:work_handlers"
 
 [tool.nonebot]
