@@ -3,6 +3,10 @@
 本文件依据 git tag 历史整理，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 新提交合入后请在 `## [Unreleased]` 下记录，发布时随版本 tag 归档。
 
+## [4.3.13] - 2026-08-14
+
+- refactor(log): 唱歌/点歌/语音请求补接单日志，日志按正文/运维约定整改
+
 ## [4.3.12] - 2026-08-13
 
 - fix(sing): direct 唱歌与点歌改用 durable work job 提交，避免远程歌曲查询与媒体服务请求阻塞 MessageRuntime 调度。
