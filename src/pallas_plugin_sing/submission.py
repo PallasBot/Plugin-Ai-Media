@@ -51,7 +51,7 @@ def log_ignored_remote_task_id(local_task_id: str, remote_task_id: str, task_pay
     logger.info(
         format_plugin_event(
             "task_alias",
-            f"Task alias ignored, request [id={local_task_id}] differs from remote task [id={remote_task_id}], "
+            f"Task alias ignored, request [{local_task_id}] differs from remote task [{remote_task_id}], "
             f"task_type [{task_payload.get('task_type', '') or '-'}]",
         )
     )
@@ -97,7 +97,8 @@ async def submit_registered_task(
     await TaskManager.add_task(request_id, payload)
     try:
         response = await HTTPXClient.post(url, json=body)
-    except Exception:
+    except Exception as exc:
+        logger.warning("sing task submission to [{}] failed: {}", url, exc)
         await TaskManager.remove_task(request_id)
         raise
     remote_task_id = response_task_id(response)
@@ -110,6 +111,13 @@ async def submit_registered_task(
 
 async def submit_sing(request: SingSubmission) -> str:
     plugin_config = get_sing_config()
+    logger.info(
+        format_plugin_event(
+            "sing",
+            f"Bot [{request.bot_id}] received a sing request in group [{request.group_id}] "
+            f"from user [{request.user_id}] for song [{request.song_query}] by speaker [{request.speaker}]",
+        )
+    )
     song_id = await get_song_id(request.song_query)
     if not song_id:
         return FAILED_REPLY
@@ -125,8 +133,8 @@ async def submit_sing(request: SingSubmission) -> str:
     logger.info(
         format_plugin_event(
             "sing",
-            f"Bot [{request.bot_id}] dispatched a sing request [id={request_id}] "
-            f"in group [{request.group_id}] by speaker [{request.speaker}]",
+            f"Bot [{request.bot_id}] dispatched a sing request [{request_id}] "
+            f"in group [{request.group_id}] from user [{request.user_id}] by speaker [{request.speaker}]",
         )
     )
     response, remote_task_id = await submit_registered_task(
@@ -143,11 +151,11 @@ async def submit_sing(request: SingSubmission) -> str:
     )
     if not remote_task_id:
         return FAILED_REPLY
-    task_part = f", task [id={remote_task_id}]" if remote_task_id != request_id else ""
+    task_part = f", task [{remote_task_id}]" if remote_task_id != request_id else ""
     logger.info(
         format_plugin_event(
             "sing",
-            f"Bot [{request.bot_id}]'s sing request [id={request_id}] was accepted{task_part}, "
+            f"Bot [{request.bot_id}] sing request [{request_id}] accepted{task_part}, "
             f"status [{response_status_code(response) or '-'}]",
         )
     )
@@ -158,7 +166,7 @@ async def submit_sing(request: SingSubmission) -> str:
     logger.info(
         format_plugin_event(
             "sing",
-            f"Bot [{request.bot_id}] queued a song [id={song_id}] for user [{request.user_id}] "
+            f"Bot [{request.bot_id}] queued a song [{song_id}] for user [{request.user_id}] "
             f"in group [{request.group_id}] by speaker [{request.speaker}]",
         )
     )
@@ -167,6 +175,13 @@ async def submit_sing(request: SingSubmission) -> str:
 
 async def submit_play(request: PlaySubmission) -> str:
     plugin_config = get_sing_config()
+    logger.info(
+        format_plugin_event(
+            "play",
+            f"Bot [{request.bot_id}] received a random sing request in group [{request.group_id}] "
+            f"from user [{request.user_id}] by speaker [{request.speaker}]",
+        )
+    )
     request_id = str(ULID())
     payload = task_payload(
         bot_id=request.bot_id,
@@ -178,8 +193,8 @@ async def submit_play(request: PlaySubmission) -> str:
     logger.info(
         format_plugin_event(
             "play",
-            f"Bot [{request.bot_id}] dispatched a play request [id={request_id}] "
-            f"in group [{request.group_id}] by speaker [{request.speaker}]",
+            f"Bot [{request.bot_id}] dispatched a play request [{request_id}] "
+            f"in group [{request.group_id}] from user [{request.user_id}] by speaker [{request.speaker}]",
         )
     )
     response, remote_task_id = await submit_registered_task(
@@ -190,11 +205,11 @@ async def submit_play(request: PlaySubmission) -> str:
     )
     if not remote_task_id:
         return FAILED_REPLY
-    task_part = f", task [id={remote_task_id}]" if remote_task_id != request_id else ""
+    task_part = f", task [{remote_task_id}]" if remote_task_id != request_id else ""
     logger.info(
         format_plugin_event(
             "play",
-            f"Bot [{request.bot_id}]'s play request [id={request_id}] was accepted{task_part}, "
+            f"Bot [{request.bot_id}] play request [{request_id}] accepted{task_part}, "
             f"status [{response_status_code(response) or '-'}]",
         )
     )
@@ -210,6 +225,13 @@ async def submit_play(request: PlaySubmission) -> str:
 
 async def submit_request_song(request: RequestSongSubmission) -> str | None:
     plugin_config = get_sing_config()
+    logger.info(
+        format_plugin_event(
+            "request",
+            f"Bot [{request.bot_id}] received a song request in group [{request.group_id}] "
+            f"from user [{request.user_id}] for song [{request.song_name}]",
+        )
+    )
     song_id = await get_song_id(request.song_name)
     if not song_id:
         return None
@@ -225,8 +247,9 @@ async def submit_request_song(request: RequestSongSubmission) -> str | None:
     logger.info(
         format_plugin_event(
             "request",
-            f"Bot [{request.bot_id}] dispatched a song request [id={request_id}] "
-            f"in group [{request.group_id}], song [id={song_id},name={request.song_name}]",
+            f"Bot [{request.bot_id}] dispatched a song request [{request_id}] "
+            f"in group [{request.group_id}] from user [{request.user_id}] for song [{request.song_name}] "
+            f"(id [{song_id}])",
         )
     )
     response, remote_task_id = await submit_registered_task(
@@ -237,11 +260,11 @@ async def submit_request_song(request: RequestSongSubmission) -> str | None:
     )
     if not remote_task_id:
         return FAILED_REPLY
-    task_part = f", task [id={remote_task_id}]" if remote_task_id != request_id else ""
+    task_part = f", task [{remote_task_id}]" if remote_task_id != request_id else ""
     logger.info(
         format_plugin_event(
             "request",
-            f"Bot [{request.bot_id}]'s song request [id={request_id}] was accepted{task_part}, "
+            f"Bot [{request.bot_id}] song request [{request_id}] accepted{task_part}, "
             f"status [{response_status_code(response) or '-'}]",
         )
     )
@@ -249,7 +272,7 @@ async def submit_request_song(request: RequestSongSubmission) -> str | None:
     logger.info(
         format_plugin_event(
             "sing",
-            f"Bot [{request.bot_id}] queued a song request [id={song_id}] for user [{request.user_id}] "
+            f"Bot [{request.bot_id}] queued a song request [{song_id}] for user [{request.user_id}] "
             f"in group [{request.group_id}]",
         )
     )

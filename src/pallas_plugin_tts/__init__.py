@@ -8,7 +8,7 @@ from pallas.api.commands import (
     command_perm_row,
     message_command,
 )
-from pallas.api.logging import format_plugin_event
+from pallas.api.logging import register_plugin_startup_ready
 from pallas.api.metadata import (
     PLUGIN_EXTRA_VERSION,
     PLUGIN_HOMEPAGE,
@@ -28,7 +28,7 @@ from .handlers import handle_speak
 
 @get_driver().on_startup
 async def _tts_ready() -> None:
-    logger.info(format_plugin_event("ready", "Registered tts command and media task hooks"))
+    register_plugin_startup_ready("tts", detail="语音合成命令与媒体任务钩子注册完成")
 
 
 PLUGIN_ID = "tts"

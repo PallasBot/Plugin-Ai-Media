@@ -7,7 +7,7 @@ from nonebot.rule import Rule
 from nonebot.typing import T_State
 from pallas.api.config import GroupConfig
 from pallas.api.limits import is_command_cooldown_ready, refresh_command_cooldown
-from pallas.api.logging import format_plugin_event
+from pallas.api.logging import register_plugin_startup_ready
 from pallas.api.metadata import (
     PLUGIN_EXTRA_VERSION,
     PLUGIN_HOMEPAGE,
@@ -315,10 +315,13 @@ async def is_to_sing(event: GroupMessageEvent, state: T_State) -> bool:
 
     if command.kind == "continue":
         progress = await GroupConfig(group_id=event.group_id).sing_progress()
-        logger.info(f"bot [{event.self_id}] sing continue read progress in group [{event.group_id}]: {progress}")
         if not progress:
             log_rule_skip("sing", event, "continue without progress", text)
             return False
+        logger.info(
+            f"Bot [{event.self_id}] resumed continue progress in group [{event.group_id}]: "
+            f"song [{progress.song_id}] at chunk [{progress.chunk_index}]"
+        )
 
         song_id = str(progress.song_id)
         chunk_index = progress.chunk_index + 1
@@ -461,10 +464,11 @@ song_title_cmd = on_message(
 async def _(event: GroupMessageEvent):
     config = GroupConfig(event.group_id)
     progress = await config.sing_progress()
-    logger.info(f"bot [{event.self_id}] sing song title query in group [{event.group_id}]: {progress}")
-
     if not progress:
         return
+    logger.info(
+        f"Bot [{event.self_id}] answered song title query in group [{event.group_id}]: song [{progress.song_id}]"
+    )
     if not await guard_command_cooldown(song_title_cmd, event, "sing.song_title", speak=False):
         return
     song_title = await get_song_title(progress.song_id)
@@ -490,4 +494,4 @@ from . import media_callback as _sing_media_callback  # noqa: E402, F401
 
 @get_driver().on_startup
 async def _sing_ready() -> None:
-    logger.info(format_plugin_event("ready", "Registered sing command and media task hooks"))
+    register_plugin_startup_ready("sing", detail="唱歌命令与媒体任务钩子注册完成")

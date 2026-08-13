@@ -60,7 +60,14 @@ async def submit_tts_request(payload: dict) -> str | None:
     logger.info(
         format_plugin_event(
             "tts",
-            f"Bot [{bot_id}] dispatched a tts request [id={request_id}] in group [{group_id}], chars [{len(text)}]",
+            f"Bot [{bot_id}] received a tts request in group [{group_id}] from user [{user_id}], {len(text)} chars",
+        )
+    )
+    logger.info(
+        format_plugin_event(
+            "tts",
+            f"Bot [{bot_id}] dispatched a tts request [{request_id}] in group [{group_id}] "
+            f"from user [{user_id}], {len(text)} chars",
         )
     )
     response = await HTTPXClient.post(
@@ -71,11 +78,11 @@ async def submit_tts_request(payload: dict) -> str | None:
     )
     if not response:
         logger.warning(
-            "tts request failed request_id={} bot_id={} group_id={} url={}",
-            request_id,
+            "Bot [{}] tts request [{}] to [{}] failed in group [{}]",
             bot_id,
-            group_id,
+            request_id,
             url,
+            group_id,
         )
         await TaskManager.remove_task(request_id)
         return "语音合成提交失败，稍后再试或检查媒体服务。"
@@ -83,18 +90,18 @@ async def submit_tts_request(payload: dict) -> str | None:
     if not remote_task_id:
         await TaskManager.remove_task(request_id)
         return "语音合成没有返回任务号，请检查媒体服务日志。"
-    task_part = f", task [id={remote_task_id}]" if remote_task_id != request_id else ""
+    task_part = f", task [{remote_task_id}]" if remote_task_id != request_id else ""
     logger.info(
         format_plugin_event(
             "tts",
-            f"Bot [{bot_id}]'s tts request [id={request_id}] was accepted{task_part}, "
+            f"Bot [{bot_id}] tts request [{request_id}] accepted{task_part}, "
             f"status [{response_status_code(response) or '-'}]",
         )
     )
     logger.info(
         format_plugin_event(
             "tts",
-            f"Bot [{bot_id}] queued speech synthesis [chars={len(text)}] for user [{user_id}] in group [{group_id}]",
+            f"Bot [{bot_id}] queued speech synthesis [{len(text)} chars] for user [{user_id}] in group [{group_id}]",
         )
     )
     return None
