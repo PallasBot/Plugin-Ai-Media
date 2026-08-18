@@ -61,7 +61,10 @@ async def cancel_pending_task_for_message(group_id: int, message_id: int) -> boo
     try:
         task = await TaskManager.get_task(request_id)
     except Exception as exc:
-        logger.warning("sing cancel pending task lookup failed group={} task_id={}: {}", group_id, request_id, exc)
+        logger.warning(
+            f"Looking up pending sing task [{request_id}] for recalled message [{message_id}] in group [{group_id}] "
+            f"failed: {exc}"
+        )
         return False
     if task is None:
         forget_message_task(group_id, message_id)
@@ -71,11 +74,8 @@ async def cancel_pending_task_for_message(group_id: int, message_id: int) -> boo
         await TaskManager.remove_task(request_id)
     except Exception as exc:
         logger.warning(
-            "sing cancel pending task failed group={} message_id={} task_id={}: {}",
-            group_id,
-            message_id,
-            request_id,
-            exc,
+            f"Cancelling pending sing task [{request_id}] for recalled message [{message_id}] "
+            f"in group [{group_id}] failed: {exc}"
         )
         return False
     logger.info(
