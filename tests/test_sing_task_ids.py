@@ -29,6 +29,9 @@ def _bootstrap_stub_modules() -> None:
     nonebot.on_message = lambda *a, **k: types.SimpleNamespace(
         handle=lambda: (lambda fn: fn), finish=None, send=None
     )
+    nonebot.on_notice = lambda *a, **k: types.SimpleNamespace(
+        handle=lambda: (lambda fn: fn), finish=None, send=None
+    )
     _install_stub("nonebot", nonebot)
 
     exception = types.ModuleType("nonebot.exception")
@@ -54,6 +57,7 @@ def _bootstrap_stub_modules() -> None:
 
     ob11 = types.ModuleType("nonebot.adapters.onebot.v11")
     ob11.GroupMessageEvent = object
+    ob11.GroupRecallNoticeEvent = object
     ob11.permission = types.SimpleNamespace(GROUP=object())
     _install_stub("nonebot.adapters.onebot.v11", ob11)
 
@@ -78,6 +82,7 @@ def _bootstrap_stub_modules() -> None:
 
     api_logging_mod = types.ModuleType("pallas.api.logging")
     api_logging_mod.format_plugin_event = lambda *args, **kwargs: " ".join(str(arg) for arg in args)
+    api_logging_mod.register_plugin_startup_ready = lambda *a, **k: None
     _install_stub("pallas.api.logging", api_logging_mod)
 
     cmd_defaults = types.ModuleType("pallas.api.metadata")
@@ -93,7 +98,7 @@ def _bootstrap_stub_modules() -> None:
     config_mod = types.ModuleType("pallas.api.config")
     config_mod.GroupConfig = object
     config_mod.SingProgress = lambda **kwargs: types.SimpleNamespace(**kwargs)
-    config_mod.TaskManager = types.SimpleNamespace(add_task=None, remove_task=None)
+    config_mod.TaskManager = types.SimpleNamespace(add_task=None, remove_task=None, get_task=None)
     _install_stub("pallas.api.config", config_mod)
 
     api_utils_mod = types.ModuleType("pallas.api.utils")
@@ -236,6 +241,7 @@ async def test_play_dispatch_uses_request_id_endpoint_and_keeps_request_id_task(
     class DummyEvent:
         group_id = 42
         user_id = 7
+        message_id = 555
 
     async def fake_add_task(task_id: str, payload: dict) -> None:
         added.append((task_id, dict(payload)))
@@ -281,6 +287,7 @@ async def test_request_song_updates_sing_progress(monkeypatch: pytest.MonkeyPatc
     class DummyEvent:
         group_id = 42
         user_id = 7
+        message_id = 555
 
     async def fake_add_task(task_id: str, payload: dict) -> None:
         calls.append("register")

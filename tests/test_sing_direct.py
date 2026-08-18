@@ -77,6 +77,7 @@ async def test_sing_direct_returns_durable_submission_job_and_commit_time_cooldo
         "song_query": "青花瓷",
         "key": "2",
         "chunk_index": 0,
+        "message_id": 4004,
     }
     refresh.assert_not_awaited()
 
@@ -116,6 +117,7 @@ async def test_request_song_direct_returns_durable_submission_job(
         "group_id": 3003,
         "user_id": 2002,
         "song_name": "青花瓷",
+        "message_id": 4004,
     }
     assert direct_mod.SING_DECLARATION.command_id == "sing.sing"
     assert direct_mod.REQUEST_SONG_DECLARATION.command_id == "sing.request_song"

@@ -15,6 +15,77 @@ from .ncm_login import get_song_id
 ACCEPTED_REPLY = "欢呼吧！"
 FAILED_REPLY = "我习惯了站着不动思考。有时候啊，也会被大家突然戳一戳，看看睡着了没有。"
 
+# 记录消息 → 已提交任务，供撤回时取消未开始的投递（仅在任务尚未被 AI 回调消费时有效）
+# 键为 (group_id, message_id)，避免跨群消息号复用导致误取消
+_message_task_index: dict[tuple[int, int], tuple[str, float]] = {}
+_message_task_ttl_sec = 3600.0
+
+
+def remember_message_task(group_id: int, message_id: int, request_id: str) -> None:
+    if not message_id:
+        return
+    _prune_message_task_index()
+    _message_task_index[(group_id, message_id)] = (request_id, time.time())
+
+
+def forget_message_task(group_id: int, message_id: int) -> None:
+    if message_id:
+        _message_task_index.pop((group_id, message_id), None)
+
+
+def pending_task_for_message(group_id: int, message_id: int) -> str | None:
+    if not message_id:
+        return None
+    entry = _message_task_index.get((group_id, message_id))
+    if entry is None:
+        return None
+    request_id, submitted_at = entry
+    if time.time() - submitted_at > _message_task_ttl_sec:
+        _message_task_index.pop((group_id, message_id), None)
+        return None
+    return request_id
+
+
+def _prune_message_task_index() -> None:
+    now = time.time()
+    stale = [key for key, (_rid, ts) in _message_task_index.items() if now - ts > _message_task_ttl_sec]
+    for key in stale:
+        _message_task_index.pop(key, None)
+
+
+async def cancel_pending_task_for_message(group_id: int, message_id: int) -> bool:
+    """撤回点歌/唱歌消息时调用：若对应任务尚未被 AI 回调消费则移除，避免撤回后仍投递歌曲。"""
+    request_id = pending_task_for_message(group_id, message_id)
+    if not request_id:
+        return False
+    try:
+        task = await TaskManager.get_task(request_id)
+    except Exception as exc:
+        logger.warning("sing cancel pending task lookup failed group={} task_id={}: {}", group_id, request_id, exc)
+        return False
+    if task is None:
+        forget_message_task(group_id, message_id)
+        return False
+    forget_message_task(group_id, message_id)
+    try:
+        await TaskManager.remove_task(request_id)
+    except Exception as exc:
+        logger.warning(
+            "sing cancel pending task failed group={} message_id={} task_id={}: {}",
+            group_id,
+            message_id,
+            request_id,
+            exc,
+        )
+        return False
+    logger.info(
+        format_plugin_event(
+            "sing_cancel",
+            f"Cancelled pending task [{request_id}] for recalled message [{message_id}] in group [{group_id}]",
+        )
+    )
+    return True
+
 
 @dataclass(frozen=True, slots=True)
 class SingSubmission:
@@ -26,6 +97,7 @@ class SingSubmission:
     key: int | str = 0
     chunk_index: int = 0
     request_id: str = ""
+    message_id: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +106,7 @@ class PlaySubmission:
     group_id: int
     user_id: int
     speaker: str
+    message_id: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +116,7 @@ class RequestSongSubmission:
     user_id: int
     song_name: str
     request_id: str = ""
+    message_id: int = 0
 
 
 def log_ignored_remote_task_id(local_task_id: str, remote_task_id: str, task_payload: dict) -> None:
@@ -151,6 +225,7 @@ async def submit_sing(request: SingSubmission) -> str:
     )
     if not remote_task_id:
         return FAILED_REPLY
+    remember_message_task(request.group_id, request.message_id, request_id)
     task_part = f", task [{remote_task_id}]" if remote_task_id != request_id else ""
     logger.info(
         format_plugin_event(
@@ -205,6 +280,7 @@ async def submit_play(request: PlaySubmission) -> str:
     )
     if not remote_task_id:
         return FAILED_REPLY
+    remember_message_task(request.group_id, request.message_id, request_id)
     task_part = f", task [{remote_task_id}]" if remote_task_id != request_id else ""
     logger.info(
         format_plugin_event(
@@ -260,6 +336,7 @@ async def submit_request_song(request: RequestSongSubmission) -> str | None:
     )
     if not remote_task_id:
         return FAILED_REPLY
+    remember_message_task(request.group_id, request.message_id, request_id)
     task_part = f", task [{remote_task_id}]" if remote_task_id != request_id else ""
     logger.info(
         format_plugin_event(

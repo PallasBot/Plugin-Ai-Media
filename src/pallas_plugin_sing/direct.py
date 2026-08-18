@@ -62,6 +62,7 @@ async def sing(context: DirectCommandContext) -> DirectCommandResult:
             "song_query": song_query,
             "key": key,
             "chunk_index": chunk_index,
+            "message_id": context.message_id,
         },
         idempotency_key=f"sing:{context.bot_id}:{context.group_id}:{context.message_id}",
     )
@@ -94,6 +95,7 @@ async def request_song(context: DirectCommandContext) -> DirectCommandResult:
             "group_id": context.group_id,
             "user_id": int(context.event.user_id),
             "song_name": command.song_name,
+            "message_id": context.message_id,
         },
         idempotency_key=f"sing.request_song:{context.bot_id}:{context.group_id}:{context.message_id}",
     )

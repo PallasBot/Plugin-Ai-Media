@@ -16,6 +16,7 @@ async def handle_sing_submit(payload: dict) -> DirectWorkResult:
             key=payload.get("key", 0),
             chunk_index=int(payload.get("chunk_index", 0)),
             request_id=str(payload["request_id"]),
+            message_id=int(payload.get("message_id") or 0),
         )
     )
     return DirectWorkResult(
@@ -37,6 +38,7 @@ async def handle_request_song(payload: dict) -> DirectWorkResult | None:
             user_id=int(payload["user_id"]),
             song_name=str(payload["song_name"]),
             request_id=str(payload["request_id"]),
+            message_id=int(payload.get("message_id") or 0),
         )
     )
     if message is None:

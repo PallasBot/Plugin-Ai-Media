@@ -1,6 +1,6 @@
-from nonebot import get_driver, logger, on_message
+from nonebot import get_driver, logger, on_message, on_notice
 from nonebot.adapters import Bot, Event
-from nonebot.adapters.onebot.v11 import GroupMessageEvent
+from nonebot.adapters.onebot.v11 import GroupMessageEvent, GroupRecallNoticeEvent
 from nonebot.exception import ActionFailed, FinishedException, NetworkError
 from nonebot.plugin import PluginMetadata
 from nonebot.rule import Rule
@@ -28,6 +28,7 @@ from .submission import (
     PlaySubmission,
     RequestSongSubmission,
     SingSubmission,
+    cancel_pending_task_for_message,
     response_status_code,
     response_task_id,
     submit_play,
@@ -363,6 +364,7 @@ async def handle_sing(bot: Bot, event: GroupMessageEvent, state: T_State):
             song_query=state["song_id"],
             key=state["key"],
             chunk_index=state["chunk_index"],
+            message_id=int(event.message_id),
         )
     )
     await safe_finish(sing_msg, message)
@@ -398,6 +400,7 @@ async def handle_play(bot: Bot, event: GroupMessageEvent, state: T_State):
             group_id=event.group_id,
             user_id=event.user_id,
             speaker=state["speaker"],
+            message_id=int(event.message_id),
         )
     )
     await safe_finish(play_cmd, message)
@@ -441,6 +444,7 @@ async def handle_request_song(bot: Bot, event: GroupMessageEvent, state: T_State
             group_id=event.group_id,
             user_id=event.user_id,
             song_name=state["song_name"],
+            message_id=int(event.message_id),
         )
     )
     if message is not None:
@@ -450,6 +454,10 @@ async def handle_request_song(bot: Bot, event: GroupMessageEvent, state: T_State
 async def what_song(event: Event) -> bool:
     text = event.get_plaintext()
     return matches_song_title(text, get_sing_config().sing_speakers)
+
+
+async def is_sing_recall(event: Event) -> bool:
+    return isinstance(event, GroupRecallNoticeEvent)
 
 
 song_title_cmd = on_message(
@@ -489,7 +497,23 @@ except ModuleNotFoundError as exc:
         raise
 
 # 登记 AI callback 投递收尾（需 Bot 侧 runner 调用 invoke_media_task_success）。
-from . import media_callback as _sing_media_callback  # noqa: E402, F401
+from . import media_callback as _sing_media_callback  # noqa: E402
+
+# 用户撤回点歌/唱歌消息时取消未开始的投递，避免撤回后仍收到歌曲
+sing_recall_notice = on_notice(
+    rule=Rule(is_sing_recall),
+    priority=13,
+    block=False,
+)
+
+
+@sing_recall_notice.handle()
+async def handle_sing_recall(event: GroupRecallNoticeEvent):
+    if await cancel_pending_task_for_message(int(event.group_id), int(event.message_id)):
+        logger.info(
+            f"Bot [{event.self_id}] cancelled pending sing task for recalled message [{event.message_id}] "
+            f"in group [{event.group_id}]"
+        )
 
 
 @get_driver().on_startup
