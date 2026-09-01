@@ -3,7 +3,7 @@
 本文件依据 git tag 历史整理，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 新提交合入后请在 `## [Unreleased]` 下记录，发布时随版本 tag 归档。
 
-## [Unreleased]
+## [4.3.17] - 2026-09-01
 
 - feat(sing): 「牛牛什么歌」回复补上歌手信息（歌名 - 歌手）
 
