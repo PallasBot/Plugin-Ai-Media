@@ -197,11 +197,6 @@ async def get_song_id(song_name: str):
     return None
 
 
-async def get_song_title(song_id):
-    response = await ncm.track.GetTrackDetail(song_id)
-    return response["songs"][0]["name"]
-
-
 async def get_song_title_with_artist(song_id):
     """查询歌曲名与歌手列表，返回 (歌名, [歌手...])；无有效结果时返回 None。"""
     response = await ncm.track.GetTrackDetail(song_id)
