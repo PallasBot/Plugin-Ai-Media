@@ -152,6 +152,7 @@ __plugin_meta__ = PluginMetadata(
         "menu_data": [
             {
                 "func": "牛牛唱歌",
+                "group": "唱歌与点歌",
                 "trigger_method": "on_message",
                 "trigger_scene": SCENE_GROUP,
                 "trigger_condition": "牛牛唱歌 歌曲名 [key=±N]",
@@ -161,6 +162,7 @@ __plugin_meta__ = PluginMetadata(
             },
             {
                 "func": "继续唱",
+                "group": "唱歌与点歌",
                 "trigger_method": "on_message",
                 "trigger_scene": SCENE_GROUP,
                 "trigger_condition": "牛牛继续唱 / 牛牛接着唱",
@@ -170,6 +172,7 @@ __plugin_meta__ = PluginMetadata(
             },
             {
                 "func": "点歌",
+                "group": "唱歌与点歌",
                 "trigger_method": "on_message",
                 "trigger_scene": SCENE_GROUP,
                 "trigger_condition": "牛牛点歌 歌曲名",
@@ -179,6 +182,7 @@ __plugin_meta__ = PluginMetadata(
             },
             {
                 "func": "牛牛什么歌",
+                "group": "唱歌与点歌",
                 "trigger_method": "on_message",
                 "trigger_scene": SCENE_GROUP,
                 "trigger_condition": "牛牛什么歌 / 牛牛哪首歌 / 牛牛啥歌",
@@ -188,6 +192,7 @@ __plugin_meta__ = PluginMetadata(
             },
             {
                 "func": "网易云登录",
+                "group": "网易云账号",
                 "trigger_method": "on_cmd",
                 "trigger_scene": SCENE_PRIVATE,
                 "trigger_condition": "网易云登录 / 网易云登出",
