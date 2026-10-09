@@ -64,7 +64,7 @@ AI 翻唱、续唱、点歌与查歌名；依赖 AI 仓与本体 `callback` 回�
 
 ## 配置项
 
-> 推荐在控制台 **AI 配置 · 媒体**：服务地址与 Bearer 在「媒体服务」连接里配置；音色映射 / 启停等在「唱歌」「TTS」面板（与插件页同源）。
+> 推荐在控制台 **AI 配置 · 媒体**：服务地址与 Bearer 在「媒体服务」连接里配置；网易云文本搜索和歌曲详情也需要该 Bearer，并须与 AI 侧 `PALLAS_AI_API_TOKEN` 一致；音色映射 / 启停等在「唱歌」「TTS」面板（与插件页同源）。
 
 - 唱歌：[`src/pallas_plugin_sing/config.py`](src/pallas_plugin_sing/config.py)
 - TTS：[`src/pallas_plugin_tts/config.py`](src/pallas_plugin_tts/config.py)
@@ -77,6 +77,7 @@ AI 翻唱、续唱、点歌与查歌名；依赖 AI 仓与本体 `callback` 回�
 | --- | --- |
 | 唱歌无语音 | 查 AI 服务、`/callback` 可达；**牛牛连通** 测唱歌网关 |
 | 「牛牛说」无语音 | 确认已启用 TTS；媒体服务 Bearer 与 AI 侧 `PALLAS_AI_API_TOKEN` 一致；音色默认已配置 |
+| 网易云文本点歌搜索 / 歌曲详情失败 | 在控制台「AI 配置 → 媒体 → 媒体服务 → 连接 → Bearer Token」确认已配置，且与 AI 侧 `PALLAS_AI_API_TOKEN` 一致；未配置时接口返回 HTTP 503 |
 
 ## 实现
 
