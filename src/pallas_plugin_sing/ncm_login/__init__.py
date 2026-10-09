@@ -1,4 +1,3 @@
-import asyncio
 import re
 
 import httpx
@@ -12,7 +11,8 @@ from pallas.api.logging import format_plugin_event
 from pallas.api.perm import permission_for_command
 from pallas.core.shared.utils import HTTPXClient
 from pydantic import BaseModel
-from pyncm_async import apis as ncm
+
+from pallas_plugin_tts.config import tts_auth_headers
 
 from ..config import sing_server_url
 
@@ -151,65 +151,61 @@ async def get_song_id(song_name: str):
     if song_name.isdigit():
         return song_name
 
-    try:
-        res = await asyncio.wait_for(
-            ncm.cloudsearch.GetSearchResult(song_name, 1, 10),
-            timeout=NCM_SEARCH_TIMEOUT,
-        )
-    except TimeoutError:
-        logger.warning(f"ncm cloudsearch timeout for song {song_name!r}")
-        return None
-    except Exception as e:
-        logger.warning(f"ncm cloudsearch failed for song {song_name!r}: {e}")
+    headers = ncm_api_headers()
+    if not headers:
         return None
 
-    if "result" not in res or "songCount" not in res["result"]:
-        return None
-
-    if res["result"]["songCount"] == 0:
+    response = await HTTPXClient.get(
+        f"{sing_server_url()}/v1/ncm/search",
+        params={"q": song_name},
+        headers=headers,
+        timeout=NCM_SEARCH_TIMEOUT,
+    )
+    if response is None:
         return None
 
     try:
-        logged_in = await asyncio.wait_for(is_ncm_logged_in(), timeout=NCM_SEARCH_TIMEOUT)
-    except TimeoutError:
-        logger.warning(f"ncm login status check timeout for song {song_name!r}")
+        payload = response.json()
+    except (TypeError, ValueError):
         return None
-    except Exception as e:
-        logger.warning(f"ncm login status check failed for song {song_name!r}: {e}")
+    song_id = payload.get("song_id") if isinstance(payload, dict) else None
+    if isinstance(song_id, bool) or not isinstance(song_id, (int, str)) or not str(song_id).isdigit():
         return None
+    return song_id
 
-    for song in res["result"]["songs"]:
-        # 如果未登录，跳过vip
-        if not logged_in:
-            privilege = song["privilege"]
-            if "chargeInfoList" not in privilege:
-                continue
 
-            charge_info_list = privilege["chargeInfoList"]
-            if len(charge_info_list) == 0:
-                continue
-
-            if charge_info_list[0]["chargeType"] == 1:
-                continue
-
-        return song["id"]
-
-    return None
+def ncm_api_headers() -> dict[str, str] | None:
+    return tts_auth_headers() or None
 
 
 async def get_song_title_with_artist(song_id):
     """查询歌曲名与歌手列表，返回 (歌名, [歌手...])；无有效结果时返回 None。"""
-    response = await ncm.track.GetTrackDetail(song_id)
-    songs = response.get("songs")
-    if not songs:
+    if isinstance(song_id, bool) or not str(song_id).isdigit():
         return None
-    song = songs[0]
-    name = str(song.get("name") or "").strip()
+    headers = ncm_api_headers()
+    if not headers:
+        return None
+
+    response = await HTTPXClient.get(
+        f"{sing_server_url()}/v1/ncm/songs/{song_id}",
+        headers=headers,
+        timeout=NCM_SEARCH_TIMEOUT,
+    )
+    if response is None:
+        return None
+
+    try:
+        payload = response.json()
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+
+    name = str(payload.get("name") or "").strip()
     if not name:
         return None
-    artists = [
-        str(artist.get("name") or "").strip()
-        for artist in (song.get("ar") or [])
-        if str(artist.get("name") or "").strip()
-    ]
+    raw_artists = payload.get("artists")
+    artists = (
+        [str(artist).strip() for artist in raw_artists if str(artist).strip()] if isinstance(raw_artists, list) else []
+    )
     return name, artists
